@@ -50,8 +50,9 @@ git push
 
 2. download
 ```shell
-git fetch origin
-git merge
+git fetch origin <branchName>
+git checkout main
+git merge origin/<branchName>
 ```
 
 3. new branch
