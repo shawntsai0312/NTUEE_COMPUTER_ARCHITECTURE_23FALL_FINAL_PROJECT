@@ -37,3 +37,35 @@ source ./01_RTL/01_run.f
 ```shell
 source ./01_RTL/99_clean_up.f
 ```
+
+#### github command
+* Remember to save and git add, git commit before downloading
+
+1. upload
+```shell
+git add .
+git commit -m "your comments"
+git push
+```
+
+2. download
+```shell
+git fetch origin
+git merge
+```
+
+3. new branch
+```shell
+git checkout -b BranchName
+```
+
+4. switch branch
+```shell
+git checkout BranchName
+```
+
+5. merge branch
+```shell
+git checkout main
+git merege BranchName
+```
