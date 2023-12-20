@@ -67,5 +67,5 @@ git checkout BranchName
 5. merge branch
 ```shell
 git checkout main
-git merege BranchName
+git merge BranchName
 ```
