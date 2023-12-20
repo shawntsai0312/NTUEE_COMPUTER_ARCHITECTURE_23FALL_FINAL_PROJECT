@@ -56,16 +56,26 @@ git merge
 
 3. new branch
 ```shell
-git checkout -b BranchName
+git checkout -b <branchName>
 ```
 
 4. switch branch
 ```shell
-git checkout BranchName
+git checkout <branchName>
 ```
 
-5. merge branch
+5. delete a local branch
+ ```shell
+ git branch -D <branchName>
+ ```
+
+6. delete a remote branch
+ ```shell
+ git push origin --delete <remoteBranchName>
+ ```
+
+7. merge branch
 ```shell
 git checkout main
-git merge BranchName
+git merge <branchName>
 ```
