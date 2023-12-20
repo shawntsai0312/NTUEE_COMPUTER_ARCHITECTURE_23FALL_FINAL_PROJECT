@@ -1,4 +1,4 @@
-# Computer Architecture 23Fall
+# Computer Architecture 23Fall Final Project
 ##### author : B10901176 蔡弘祥, B10901163 張顥譽
 #### Before running
 ```shell
