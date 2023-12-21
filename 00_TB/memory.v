@@ -27,7 +27,7 @@ module memory #(
 
     reg                     cen, wen, cen_last;
     reg     [ADDR_W-1:0]    addr;
-    reg     [BIT_W-1:0]     wdata;
+    reg     [BIT_W*4-1:0]   wdata;
 
     always @(posedge i_clk or negedge i_rst_n) begin
         if (!i_rst_n) begin
@@ -133,7 +133,7 @@ module memory #(
     wire     [BIT_W*4-1:0] rdata;
 
     assign rdata = {mem[addr_mem+3], mem[addr_mem+2], mem[addr_mem+1], mem[addr_mem]};
-    assign o_rdata = (cen && delay_cnt == 10 && (!addr_invalid))? rdata: {{BIT_W}{1'bz}};
+    assign o_rdata = (cen && delay_cnt == 10 && (!addr_invalid))? rdata: {{4*BIT_W}{1'bz}};
 
     // ======================================
     // Stall
