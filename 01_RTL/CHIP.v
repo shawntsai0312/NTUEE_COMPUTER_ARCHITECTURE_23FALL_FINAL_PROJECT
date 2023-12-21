@@ -151,7 +151,9 @@ module Cache#(
             output [BIT_W*4-1:0]  o_mem_wdata,
             input [BIT_W*4-1:0] i_mem_rdata,
             input i_mem_stall,
-            output o_cache_available
+            output o_cache_available,
+        // others
+        input  [ADDR_W-1: 0] i_offset
     );
 
     assign o_cache_available = 0; // change this value to 1 if the cache is implemented
@@ -167,7 +169,5 @@ module Cache#(
     //------------------------------------------//
 
     // Todo: BONUS
-    // thanks to cheng
-    
-    
+
 endmodule
