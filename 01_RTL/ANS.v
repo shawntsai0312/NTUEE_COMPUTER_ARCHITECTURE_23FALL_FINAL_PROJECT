@@ -191,7 +191,6 @@ module CHIP #(                                                                  
         // $display("i_IMEM_data = %h",i_IMEM_data);
     end
 endmodule
-
 module mux(rs1,rs2,judge,o_result);
     input[31:0] rs1,rs2;
     input judge;
@@ -205,7 +204,6 @@ module mux(rs1,rs2,judge,o_result);
         endcase
     end
 endmodule
-
 module Op_control#(
     parameter BIT_W=32,
     parameter instruction_W = 7,
@@ -450,7 +448,6 @@ endmodule
 //           1100 Jalr
 //           1101 Ecall
 //----------------------------------------------------------------
-
 module ALU #(
     parameter ADD = 4'b0000,
     parameter SUB = 4'b0001,
@@ -522,31 +519,31 @@ module ALU #(
                 ALU_result = (operand_a | operand_b);
             end
             Slt:    begin   //signed
-                if(operand_a[31] == 1 && operand_b[31] == 0)begin
-                    ALU_result[31:0] = 1;
-                end
-                else if(operand_a[31] == 0 && operand_b[31] == 1)begin
-                    ALU_result[31:0] = 0;
-                end
-                else begin
-                    outcheck[31:0] = operand_a[31:0] - operand_b[31:0];
-                    if  (outcheck[31] == 1)begin
-                        ALU_result[31:0] = 1;
-                    end
-                    else begin
-                        ALU_result[31:0] = 0;
-                    end
-                end
+               if(operand_a[31]==1 && operand_b[31]==0)begin
+                            ALU_result[31:0] = 1;
+                        end
+                        else if(operand_a[31]==0 && operand_b[31]==1)begin
+                            ALU_result[31:0]  = 0;
+                        end
+                        else begin
+                            outcheck[31:0] = operand_a[31:0] -operand_b[31:0];
+                            if  (outcheck[31]==1)begin
+                              ALU_result[31:0] =1;
+                            end
+                            else begin
+                              ALU_result[31:0] =0;
+                            end
+                        end
                 if (swap_branch_answer == 0)begin
-                    zero = (ALU_result == 1);
+                    zero = (ALU_result==1);
                 end
                 else begin
-                    zero = ~(ALU_result == 1);
+                    zero = ~(ALU_result==1);
                 end
             end
             SRA:    begin
                 zero = 0;
-                ALU_result = $signed(operand_a[DATA_W-1:0]) >>> $signed(operand_b[DATA_W-1:0]);
+                ALU_result = $signed(operand_a[DATA_W-1:0])>>>$signed(operand_b[DATA_W-1:0]);
             end
             XOR:    begin
                 zero = 0;
@@ -623,7 +620,6 @@ module Reg_file(i_clk, i_rst_n, wen, rs1, rs2, rd, wdata, rdata1, rdata2);
         end       
     end
 endmodule
-
 module  imm_generator#(
     parameter BIT_W=32,
     parameter R_type = 7'b0110011,
@@ -702,10 +698,10 @@ module  imm_generator#(
     
     end
 endmodule
-
 module MULDIV_unit#(  //TODO
     parameter DATA_W = 32
-)(
+)
+(
      input                       i_clk,   // clock 自己決定要不要clock 
     // input                       i_rst_n, // reset
 
@@ -713,6 +709,7 @@ module MULDIV_unit#(  //TODO
     input [DATA_W - 1 : 0]      i_A,     // input operand A
     input [DATA_W - 1 : 0]      i_B,     // input operand B
     input [         3 : 0]      i_ALU_opcode,  // instruction
+    
     output [DATA_W - 1 : 0]   o_MULDIV_result,  // output value
     output o_pc_wait // told pc to wait
 );
@@ -810,7 +807,8 @@ module MULDIV_unit#(  //TODO
             cnt         <= cnt_nxt;
             result      <= result_nxt;
         end
-    end  
+    end
+    
 endmodule
 
 module Cache#(
