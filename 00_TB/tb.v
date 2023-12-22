@@ -12,14 +12,17 @@
     `define MEM_INST "../00_TB/Pattern/I1/mem_I.dat"
     `define MEM_DATA "../00_TB/Pattern/I1/mem_D.dat"
     `define MEM_GOLDEN "../00_TB/Pattern/I1/golden.dat"
+    `define data 1
 `elsif I2
     `define MEM_INST "../00_TB/Pattern/I2/mem_I.dat"
     `define MEM_DATA "../00_TB/Pattern/I2/mem_D.dat"
     `define MEM_GOLDEN "../00_TB/Pattern/I2/golden.dat"
+    `define data 2
 `elsif I3
     `define MEM_INST "../00_TB/Pattern/I3/mem_I.dat"
     `define MEM_DATA "../00_TB/Pattern/I3/mem_D.dat"
     `define MEM_GOLDEN "../00_TB/Pattern/I3/golden.dat"
+    `define data 3
 `elsif IH
     `define MEM_INST "../00_TB/Pattern/IH/mem_I.dat"
     `define MEM_DATA "../00_TB/Pattern/IH/mem_D.dat"
@@ -28,6 +31,7 @@
     `define MEM_INST "../00_TB/Pattern/I0/mem_I.dat"
     `define MEM_DATA "../00_TB/Pattern/I0/mem_D.dat"
     `define MEM_GOLDEN "../00_TB/Pattern/I0/golden.dat"
+    `define data 0
 `endif
 
 module Final_tb;
@@ -142,8 +146,9 @@ module Final_tb;
             .o_mem_wdata    (DMEM_wdata),
             .i_mem_rdata    (DMEM_rdata),
             .i_mem_stall    (mem_stall),
-            .o_cache_available (cache_available)
-            
+            .o_cache_available (cache_available),
+        // others
+            .i_offset (mem_data_offset)
     );
 
     // Initialize the data memory
@@ -171,7 +176,7 @@ module Final_tb;
             end
         end
 
-        mem_data_offset = eof + 8;
+        mem_data_offset = eof;
 
         #(`CYCLE*0.5) rst_n = 1'b0;
         #(`CYCLE*2.0) rst_n = 1'b1;
@@ -190,7 +195,6 @@ module Final_tb;
         end
         $readmemh (`MEM_DATA, DMEM.mem); // initialize data in mem_D
         $readmemh (`MEM_GOLDEN, DMEM_golden); // initialize data in mem_D
-        
     end
 
     initial begin
