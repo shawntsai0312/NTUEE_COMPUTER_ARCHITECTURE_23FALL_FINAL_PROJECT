@@ -105,7 +105,7 @@ module CHIP #(                                                                  
     assign o_finish = i_cache_finish;
     imm_generator reg2(               //register generate immediate
         .instruction (i_IMEM_data[31:0]),
-        .o_immediate(immediate[31:0])
+        .o_immediate(immediat e[31:0])
     );
     mux reg3(               //mutliplexer for rs2 and immediate
         .rs1(rs2),
