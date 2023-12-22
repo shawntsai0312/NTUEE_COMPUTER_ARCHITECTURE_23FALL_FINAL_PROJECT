@@ -266,7 +266,6 @@ module Op_control#(
                             3'b100:  ALU_opcode = 4'b1000; //xor
                             default: ALU_opcode = 4'b1111;
                         endcase
-                        
                     end
                     7'b0100000:begin
                         Muldiv_ALU_choose =0;
@@ -332,29 +331,29 @@ module Op_control#(
             end
             B_type:begin
                 Muldiv_ALU_choose =0;
-                 Branch_select = 2'b01;
-                 MemRead_select = 0;
-                 MemWrite_select = 0;
-                 MemtoReg_select = 0;
-                 ALUsrc_select = 0;
-                 Regwrite_select = 0;
-                 finish = 0; 
+                Branch_select = 2'b01;
+                MemRead_select = 0;
+                MemWrite_select = 0;
+                MemtoReg_select = 0;
+                ALUsrc_select = 0;
+                Regwrite_select = 0;
+                finish = 0; 
                 case(func3)
                     3'b000: begin
-                         ALU_opcode = 4'b0001; //beq
-                         swap_branch_answer = 0;
+                        ALU_opcode = 4'b0001; //beq
+                        swap_branch_answer = 0;
                     end
                     3'b001:begin
-                         ALU_opcode =4'b0001;  //bne
-                         swap_branch_answer = 1;
+                        ALU_opcode =4'b0001;  //bne
+                        swap_branch_answer = 1;
                     end
                     3'b100:begin
-                         ALU_opcode =4'b0100; //blt
-                         swap_branch_answer = 0;
+                        ALU_opcode =4'b0100; //blt
+                        swap_branch_answer = 0;
                     end
                     3'b101:begin
-                         ALU_opcode =4'b0100; //bge
-                         swap_branch_answer = 1;
+                        ALU_opcode =4'b0100; //bge
+                        swap_branch_answer = 1;
                     end
                     default:begin
                         ALU_opcode = 4'b1111;
@@ -364,13 +363,13 @@ module Op_control#(
             end
             Load: begin
                 Muldiv_ALU_choose =0;
-                 Branch_select = 2'b00;
-                 MemRead_select = 1;
-                 MemWrite_select = 0;
-                 MemtoReg_select = 1;
-                 ALUsrc_select = 1;
-                 Regwrite_select = 1;
-                 finish = 0; 
+                Branch_select = 2'b00;
+                MemRead_select = 1;1
+                MemWrite_select = 0;
+                MemtoReg_select = 1;
+                ALUsrc_select = 1;
+                Regwrite_select = 1;
+                finish = 0; 
                 case(func3)
                     3'b010:  ALU_opcode =4'b0000; //lw
                     default:ALU_opcode = 4'b1111;
@@ -378,47 +377,47 @@ module Op_control#(
             end
             U_type:begin
                 Muldiv_ALU_choose =0;
-                 Branch_select = 2'b00;
-                 MemRead_select = 0;
-                 MemWrite_select = 0;
-                 MemtoReg_select = 0;
-                 ALUsrc_select = 1;
-                 Regwrite_select = 1;
-                 ALU_opcode = 4'b1010;
-                 finish = 0; 
+                Branch_select = 2'b00;
+                MemRead_select = 0;
+                MemWrite_select = 0;
+                MemtoReg_select = 0;
+                ALUsrc_select = 1;
+                Regwrite_select = 1;
+                ALU_opcode = 4'b1010;
+                finish = 0; 
             end
             Jal:begin
                 Muldiv_ALU_choose =0;
-                 Branch_select = 2'b10;
-                 MemRead_select = 0;
-                 MemWrite_select = 0;
-                 MemtoReg_select = 0;
-                 ALUsrc_select = 1;
-                 Regwrite_select = 1;
-                 ALU_opcode = 4'b1011;
-                 finish = 0; 
+                Branch_select = 2'b10;
+                MemRead_select = 0;
+                MemWrite_select = 0;
+                MemtoReg_select = 0;
+                ALUsrc_select = 1;
+                Regwrite_select = 1;
+                ALU_opcode = 4'b1011;
+                finish = 0; 
             end
             Jalr:begin
                 Muldiv_ALU_choose =0;
-                 Branch_select = 2'b11;
-                 MemRead_select = 0;
-                 MemWrite_select = 0;
-                 MemtoReg_select = 0;
-                 ALUsrc_select = 1;
-                 Regwrite_select = 1;
-                 ALU_opcode = 4'b1011;
-                 finish = 0; 
+                Branch_select = 2'b11;
+                MemRead_select = 0;
+                MemWrite_select = 0;
+                MemtoReg_select = 0;
+                ALUsrc_select = 1;
+                Regwrite_select = 1;
+                ALU_opcode = 4'b1011;
+                finish = 0; 
             end
             Ecall:begin
                 Muldiv_ALU_choose =0;
-                 Branch_select = 0;
-                 MemRead_select = 0;
-                 MemWrite_select = 0;
-                 MemtoReg_select = 0;
-                 ALUsrc_select = 0;
-                 Regwrite_select = 0;
-                 ALU_opcode = 4'b1101;
-                 finish = 1; 
+                Branch_select = 0;
+                MemRead_select = 0;
+                MemWrite_select = 0;
+                MemtoReg_select = 0;
+                ALUsrc_select = 0;
+                Regwrite_select = 0;
+                ALU_opcode = 4'b1101;
+                finish = 1; 
             end
             default:    begin  
                 Muldiv_ALU_choose =0;               

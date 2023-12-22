@@ -160,7 +160,7 @@ module ControlUnit #(
         input [6:0] i_func7,
         input [3:0] i_func3,
         output [1:0] o_BranchType,  // BranchTypeType Type, 1: BType, 2: Jal, 3: Jalr
-        output o_Branch,            // Branch or not
+        output o_InvertZeroAns,     // InvertZeroAns : beq = 0, bne = 1; blt = 0, bge = 1; ALU only support beq and blt
         output o_MemRead,           // To Data Memory
         output o_MemToReg,          // To WB mux
         output [3:0] o_ALU_opcode,  // To ALU Control Unit
@@ -168,14 +168,14 @@ module ControlUnit #(
         output o_MemWrite,          // To Data Memory
         output o_ALUSrc,            // To Rs2 and Imm selection mux
         output o_RegWrite,          // To Registers
-        output o_finish,            // Finish signal
+        output o_finish,            // Program Finish
     )
     // regs declaration and assign to outputs
         reg [1:0] BranchType;
         assign o_BranchType = BranchType;
 
-        reg Branch;
-        assign o_Branch = branch;
+        reg InvertZeroAns;
+        assign o_InvertZeroAns = InvertZeroAns;
 
         reg MemRead;
         assign o_MemRead = MemRead;
@@ -201,68 +201,300 @@ module ControlUnit #(
         reg finish;
         assign o_finish = finish;
 
-        always @(*) begin
-            case(i_opcode)
-                R_type  : begin
-                    
-                end
-                I_type  : begin
-                end
-                S_type  : begin
-                end
-                B_type  : begin
-                end
-                U_type  : begin
-                end
-                Load    : begin
-                end
-                Jal     : begin
-                end
-                Jalr    : begin
-                end
-                Ecall   : begin
-                end
-                default : begin
-                    BranchType      = 2'd0;
-                    Branch          = 1'b0;
-                    MemRead         = 1'b0; 
-                    MemToReg        = 1'b0;
-                    ALU_opcode      = 4'd15;
-                    MULDIV_opcode   = 1'b0;
-                    MemWrite
-                    ALUSrc
-                    RegWrite
-                    finish
-                end
-            endcase
-        end
-
+    always @(*) begin
+        case(i_opcode)
+            R_type  : begin
+                BranchType      = 2'd0;
+                InvertZeroAns   = 1'b0;
+                MemRead         = 1'b0; 
+                MemToReg        = 1'b0;
+                case(i_func7)
+                    7'b0000000 : begin
+                        case(i_func3)
+                            3'b000 : ALU_opcode = 4'd0;  // add
+                            3'b111 : ALU_opcode = 4'd2;  // and 
+                            3'b110 : ALU_opcode = 4'd3;  // or
+                            3'b100 : ALU_opcode = 4'd8;  // xor
+                            default: ALU_opcode = 4'd15; // ALU does nothing
+                        endcase
+                    end
+                    7'b0100000 : begin
+                        case(i_func3)
+                            3'b000 : ALU_opcode = 4'd1;  // sub
+                            default: ALU_opcode = 4'd15; // ALU does nothing
+                        endcase
+                    end
+                    7'b0000001 : begin
+                        case (i_func3)
+                            3'b000:  ALU_opcode = 4'd6;  // mul
+                            3'b100:  ALU_opcode = 4'd7;  // div
+                            default: ALU_opcode = 4'd15; // ALU does nothing
+                        endcase
+                    end
+                    default : ALU_opcode = 4'd15;        // ALU does nothing
+                endcase
+                case(i_func7)
+                    7'b0000001 : MULDIV_opcode = 1'b1;   // mul or div
+                    default    : MULDIV_opcode = 1'b0;   // MULDIV unit does nothing
+                endcase
+                MemWrite        = 1'b0;
+                ALUSrc          = 1'b0;
+                RegWrite        = 1'b1;
+                finish          = 1'b0;
+            end
+            I_type  : begin
+                BranchType      = 2'd0;
+                InvertZeroAns   = 1'b0;
+                MemRead         = 1'b0; 
+                MemToReg        = 1'b0;
+                case(i_func3)
+                    3'b000  : ALU_opcode = 4'd0;                // addi => add
+                    3'b010  : ALU_opcode = 4'd0;                // slti => slt
+                    3'b101  : begin
+                        case(i_func7)
+                            7'b0100000 : ALU_opcode = 4'd5;     // srai => sra
+                            default    : ALU_opcode = 4'd15;    // ALU does nothing
+                        endcase
+                    end
+                    3'b001  : begin
+                        case(i_func7)
+                            7'b0000000 : ALU_opcode = 4'd9;     // slli => ALU sll
+                            default    : ALU_opcode = 4'd15;    // ALU does nothing
+                        endcase
+                    end
+                    default : ALU_opcode = 4'd15;               // ALU does nothing
+                endcase
+                MULDIV_opcode   = 1'b0;
+                MemWrite        = 1'b0;
+                ALUSrc          = 1'b1;
+                RegWrite        = 1'b1;
+                finish          = 1'b0;
+            end
+            S_type  : begin
+                BranchType      = 2'd0;
+                InvertZeroAns   = 1'b0;
+                MemRead         = 1'b1; 
+                MemToReg        = 1'b1;
+                case(i_func3)
+                    3'b010  : ALU_opcode = 4'd0;  // add
+                    default : ALU_opcode = 4'd15; // ALU does nothing
+                endcase
+                MULDIV_opcode   = 1'b0;
+                MemWrite        = 1'b0;
+                ALUSrc          = 1'b1;
+                RegWrite        = 1'b0;
+                finish          = 1'b0;
+            end
+            B_type  : begin
+                BranchType      = 2'd1;
+                InvertZeroAns   = 1'b0;
+                case(i_func3)
+                    3'b000  : InvertZeroAns = 1'b0; // beq (ALU support sub, if subAns==0, then it is equal)
+                    3'b001  : InvertZeroAns = 1'b1; // bne (ALU does not support, invert the answer of beq)
+                    3'b100  : InvertZeroAns = 1'b0; // blt (ALU support slt, if sltAns==1, then it is equal)
+                    3'b101  : InvertZeroAns = 1'b1; // bge (ALU does not support, invert the answer of blt)
+                    default : InvertZeroAns = 1'b0;
+                endcase
+                MemRead         = 1'b0; 
+                MemToReg        = 1'b0;
+                case(i_func3)
+                    3'b000  : ALU_opcode = 4'd1;  // sub
+                    3'b001  : ALU_opcode = 4'd1;  // sub
+                    3'b100  : ALU_opcode = 4'd4;  // slt
+                    3'b101  : ALU_opcode = 4'd4;  // slt
+                    default : ALU_opcode = 4'd15; // ALU does nothing
+                endcase
+                MULDIV_opcode   = 1'b0;
+                MemWrite        = 1'b0;
+                ALUSrc          = 1'b1;
+                RegWrite        = 1'b1;
+                finish          = 1'b0;
+            end
+            Load    : begin
+                BranchType      = 2'd0;
+                InvertZeroAns   = 1'b0;
+                MemRead         = 1'b1; 
+                MemToReg        = 1'b1;
+                case(i_func3)
+                    3'b010  : ALU_opcode = 4'd0;  // add
+                    default : ALU_opcode = 4'd15; // ALU does nothing
+                endcase
+                MULDIV_opcode   = 1'b0;
+                MemWrite        = 1'b0;
+                ALUSrc          = 1'b1;
+                RegWrite        = 1'b1;
+                finish          = 1'b0;
+            end
+            U_type  : begin
+                BranchType      = 2'd0;
+                InvertZeroAns   = 1'b0;
+                MemRead         = 1'b0; 
+                MemToReg        = 1'b0;
+                ALU_opcode      = 4'd10;
+                MULDIV_opcode   = 1'b0;
+                MemWrite        = 1'b0;
+                ALUSrc          = 1'b1;
+                RegWrite        = 1'b1;
+                finish          = 1'b0;
+            end
+            Jal     : begin
+                BranchType      = 2'd2;
+                InvertZeroAns   = 1'b0;
+                MemRead         = 1'b0; 
+                MemToReg        = 1'b0;
+                ALU_opcode      = 4'd11;
+                MULDIV_opcode   = 1'b0;
+                MemWrite        = 1'b0;
+                ALUSrc          = 1'b1;
+                RegWrite        = 1'b1;
+                finish          = 1'b0;
+            end
+            Jalr    : begin
+                BranchType      = 2'd3;
+                InvertZeroAns   = 1'b0;
+                MemRead         = 1'b0; 
+                MemToReg        = 1'b0;
+                ALU_opcode      = 4'd12;
+                MULDIV_opcode   = 1'b0;
+                MemWrite        = 1'b0;
+                ALUSrc          = 1'b1;
+                RegWrite        = 1'b1;
+                finish          = 1'b0;
+            end
+            Ecall   : begin
+                BranchType      = 2'd0;
+                InvertZeroAns   = 1'b0;
+                MemRead         = 1'b0; 
+                MemToReg        = 1'b0;
+                ALU_opcode      = 4'd13; // ALU stops
+                MULDIV_opcode   = 1'b0;
+                MemWrite        = 1'b0;
+                ALUSrc          = 1'b0;
+                RegWrite        = 1'b0;
+                finish          = 1'b1;
+            end
+            default : begin
+                BranchType      = 2'd0;
+                InvertZeroAns   = 1'b0;
+                MemRead         = 1'b0; 
+                MemToReg        = 1'b0;
+                ALU_opcode      = 4'd15; // ALU does nothing
+                MULDIV_opcode   = 1'b0;
+                MemWrite        = 1'b0;
+                ALUSrc          = 1'b0;
+                RegWrite        = 1'b0;
+                finish          = 1'b0;
+            end
+        endcase
+    end
 endmodule
 
-// module ALU #(
-//         parameter ADD    = 4'd0,
-//         parameter SUB    = 4'd1,
-//         parameter AND    = 4'd2,
-//         parameter OR     = 4'd3,
-//         parameter SLT    = 4'd4,
-//         parameter SRA    = 4'd5,
-//         parameter XOR    = 4'd6,
-//         parameter SLL    = 4'd7,
-//         parameter AUIPC  = 4'd8,
-//         parameter JAL    = 4'd9,
-//         parameter JALR   = 4'd10,
-//         parameter ECALL  = 4'd11,
-//         parameter DATA_W = 32
-//     )(
-//         input [DATA_W-1:0] i_PC,            // PC
-//         input [3:0] i_ALU_opcode,           // opcode
-//         input [DATA_W-1:0] i_A, i_B,        // input data
-//         input swap_BranchType_answer,           // BranchType
-//         output [DATA_W-1:0] o_ALU_result,   // output data
-//         output o_zero                       // pc change and gate
-//     );
+module ALU #(
+        parameter ADD    = 4'd0,
+        parameter SUB    = 4'd1,
+        parameter AND    = 4'd2,
+        parameter OR     = 4'd3,
+        parameter SLT    = 4'd4,
+        parameter SRA    = 4'd5,
+        parameter XOR    = 4'd8,
+        parameter SLL    = 4'd9,
+        parameter AUIPC  = 4'd10,
+        parameter JAL    = 4'd11,
+        parameter JALR   = 4'd12,
+        parameter ECALL  = 4'd13,
+        parameter DATA_W = 32
+    )(
+        input [DATA_W-1:0] i_PC,            // PC
+        input [3:0] i_ALU_opcode,           // ALU opcode from Control unit
+        input [DATA_W-1:0] i_A,             // input data A
+        input [DATA_W-1:0] i_B,             // input data B
+        input i_InvertZeroAns,              // InvertZeroAns : beq = 0, bne = 1; blt = 0, bge = 1; ALU only support beq and blt
+        output [DATA_W-1:0] o_ALU_Result,   // output ALU result
+        output o_zero                       // zero to pc control (branch)
+    );
 
-// endmodule
+    // input and output handling
+        reg PC;
+        reg [3:0] ALU_opcode;
+        reg [DATA_W-1:0] operand_a;
+        reg [DATA_W-1:0] operand_b;
+        reg InvertZeroAns;
+        
+        always @(*) begin
+            PC = i_PC;
+            ALU_opcode = i_ALU_opcode;
+            operand_a = i_A;
+            operand_b = i_B;
+            InvertZeroAns = i_InvertZeroAns;
+        end
+
+        reg [DATA_W-1:0] result;
+        assign o_ALU_Result = result;
+
+        reg zero;
+        assign o_zero = zero;
+
+        reg [DATA_W-1:0] temp;
+
+    always @(*) begin
+        temp = 0;
+        case(ALU_opcode)
+            ADD     : begin
+                zero = 0;
+                result = operand_a + operand_b;
+            end
+            SUB     : begin
+                result = operand_a - operand_b;
+                zero = InvertZeroAns ? (result[DATA_W-1:0] != 0) : (result[DATA_W-1:0] == 0);
+            end
+            AND     : begin
+                zero = 0;
+                result = operand_a & operand_b;
+            end
+            OR      : begin
+                zero = 0;
+                result = operand_a | operand_b;
+            end
+            SLT     : begin
+                temp[DATA_W-1:0] = operand_a[DATA_W-1:0] - operand_b[DATA_W-1:0];
+                result = temp[DATA_W-1];
+                zero = InvertZeroAns ? (!result[0]) : (result[0]);
+            end
+            SRA     : begin
+                zero = 0;
+                result = $signed(operand_a) >>> operand_b;
+            end
+            XOR     : begin
+                zero = 0;
+                result = operand_a ^ operand_b;
+            end
+            SLL     : begin
+                zero = 0;
+                result = operand_a << operand_b;
+            end
+            AUIPC   : begin
+                zero = 0;
+                result = PC + operand_b;
+            end
+            JAL     : begin
+                zero = 0;
+                result = PC + 4;
+            end
+            JALR    : begin
+                zero = 0;
+                result = PC + 4;
+            end
+            ECALL   : begin
+                zero = 0;
+                result = 0;
+            end
+            default : begin
+                zero = 0;
+                result = 0;
+            end
+        endcase
+    end  
+endmodule
 
 module MULDIV_unit(
     // TODO: port declaration
