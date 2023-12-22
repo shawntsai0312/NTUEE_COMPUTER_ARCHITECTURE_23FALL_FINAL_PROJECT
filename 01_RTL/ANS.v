@@ -186,12 +186,18 @@ module CHIP #(                                                                  
             PC <= next_PC;
             //imem_cen <= imem_cen_nxt;
         end
-        // $display("PC = %h", PC);
-        // $display("rs1 = %d, rs2_select = %d, write_data=%d", rs1,rs2_select,write_data_back_reg,);
-        // $display("i_IMEM_data = %h",i_IMEM_data);
+        // $display("PC           = %h", PC);
+        // $display("rs1          = %d", rs1);
+        // $display("rs2_select   = %d", rs2_select);
+        // $display("ALUopcode    = %d", ALU_opcode);
+        // $display("ALUResult    = %d", ALU_result);
+        // $display("result       = %d", ALU_result);
+        // $display("i_DMEM_rdata = %h", i_DMEM_rdata);
+        // $display("write_data   = %d", write_data_back_reg);
+        // $display("i_IMEM_data  = %h", i_IMEM_data);
+        // $display("\n");
     end
 endmodule
-
 module mux(rs1,rs2,judge,o_result);
     input[31:0] rs1,rs2;
     input judge;
@@ -205,7 +211,6 @@ module mux(rs1,rs2,judge,o_result);
         endcase
     end
 endmodule
-
 module Op_control#(
     parameter BIT_W=32,
     parameter instruction_W = 7,
@@ -266,6 +271,7 @@ module Op_control#(
                             3'b100:  ALU_opcode = 4'b1000; //xor
                             default: ALU_opcode = 4'b1111;
                         endcase
+                        
                     end
                     7'b0100000:begin
                         Muldiv_ALU_choose =0;
@@ -331,29 +337,29 @@ module Op_control#(
             end
             B_type:begin
                 Muldiv_ALU_choose =0;
-                Branch_select = 2'b01;
-                MemRead_select = 0;
-                MemWrite_select = 0;
-                MemtoReg_select = 0;
-                ALUsrc_select = 0;
-                Regwrite_select = 0;
-                finish = 0; 
+                 Branch_select = 2'b01;
+                 MemRead_select = 0;
+                 MemWrite_select = 0;
+                 MemtoReg_select = 0;
+                 ALUsrc_select = 0;
+                 Regwrite_select = 0;
+                 finish = 0; 
                 case(func3)
                     3'b000: begin
-                        ALU_opcode = 4'b0001; //beq
-                        swap_branch_answer = 0;
+                         ALU_opcode = 4'b0001; //beq
+                         swap_branch_answer = 0;
                     end
                     3'b001:begin
-                        ALU_opcode =4'b0001;  //bne
-                        swap_branch_answer = 1;
+                         ALU_opcode =4'b0001;  //bne
+                         swap_branch_answer = 1;
                     end
                     3'b100:begin
-                        ALU_opcode =4'b0100; //blt
-                        swap_branch_answer = 0;
+                         ALU_opcode =4'b0100; //blt
+                         swap_branch_answer = 0;
                     end
                     3'b101:begin
-                        ALU_opcode =4'b0100; //bge
-                        swap_branch_answer = 1;
+                         ALU_opcode =4'b0100; //bge
+                         swap_branch_answer = 1;
                     end
                     default:begin
                         ALU_opcode = 4'b1111;
@@ -363,13 +369,13 @@ module Op_control#(
             end
             Load: begin
                 Muldiv_ALU_choose =0;
-                Branch_select = 2'b00;
-                MemRead_select = 1;1
-                MemWrite_select = 0;
-                MemtoReg_select = 1;
-                ALUsrc_select = 1;
-                Regwrite_select = 1;
-                finish = 0; 
+                 Branch_select = 2'b00;
+                 MemRead_select = 1;
+                 MemWrite_select = 0;
+                 MemtoReg_select = 1;
+                 ALUsrc_select = 1;
+                 Regwrite_select = 1;
+                 finish = 0; 
                 case(func3)
                     3'b010:  ALU_opcode =4'b0000; //lw
                     default:ALU_opcode = 4'b1111;
@@ -377,47 +383,47 @@ module Op_control#(
             end
             U_type:begin
                 Muldiv_ALU_choose =0;
-                Branch_select = 2'b00;
-                MemRead_select = 0;
-                MemWrite_select = 0;
-                MemtoReg_select = 0;
-                ALUsrc_select = 1;
-                Regwrite_select = 1;
-                ALU_opcode = 4'b1010;
-                finish = 0; 
+                 Branch_select = 2'b00;
+                 MemRead_select = 0;
+                 MemWrite_select = 0;
+                 MemtoReg_select = 0;
+                 ALUsrc_select = 1;
+                 Regwrite_select = 1;
+                 ALU_opcode = 4'b1010;
+                 finish = 0; 
             end
             Jal:begin
                 Muldiv_ALU_choose =0;
-                Branch_select = 2'b10;
-                MemRead_select = 0;
-                MemWrite_select = 0;
-                MemtoReg_select = 0;
-                ALUsrc_select = 1;
-                Regwrite_select = 1;
-                ALU_opcode = 4'b1011;
-                finish = 0; 
+                 Branch_select = 2'b10;
+                 MemRead_select = 0;
+                 MemWrite_select = 0;
+                 MemtoReg_select = 0;
+                 ALUsrc_select = 1;
+                 Regwrite_select = 1;
+                 ALU_opcode = 4'b1011;
+                 finish = 0; 
             end
             Jalr:begin
                 Muldiv_ALU_choose =0;
-                Branch_select = 2'b11;
-                MemRead_select = 0;
-                MemWrite_select = 0;
-                MemtoReg_select = 0;
-                ALUsrc_select = 1;
-                Regwrite_select = 1;
-                ALU_opcode = 4'b1011;
-                finish = 0; 
+                 Branch_select = 2'b11;
+                 MemRead_select = 0;
+                 MemWrite_select = 0;
+                 MemtoReg_select = 0;
+                 ALUsrc_select = 1;
+                 Regwrite_select = 1;
+                 ALU_opcode = 4'b1011;
+                 finish = 0; 
             end
             Ecall:begin
                 Muldiv_ALU_choose =0;
-                Branch_select = 0;
-                MemRead_select = 0;
-                MemWrite_select = 0;
-                MemtoReg_select = 0;
-                ALUsrc_select = 0;
-                Regwrite_select = 0;
-                ALU_opcode = 4'b1101;
-                finish = 1; 
+                 Branch_select = 0;
+                 MemRead_select = 0;
+                 MemWrite_select = 0;
+                 MemtoReg_select = 0;
+                 ALUsrc_select = 0;
+                 Regwrite_select = 0;
+                 ALU_opcode = 4'b1101;
+                 finish = 1; 
             end
             default:    begin  
                 Muldiv_ALU_choose =0;               
@@ -449,7 +455,6 @@ endmodule
 //           1100 Jalr
 //           1101 Ecall
 //----------------------------------------------------------------
-
 module ALU #(
     parameter ADD = 4'b0000,
     parameter SUB = 4'b0001,
@@ -521,31 +526,31 @@ module ALU #(
                 ALU_result = (operand_a | operand_b);
             end
             Slt:    begin   //signed
-                if(operand_a[31] == 1 && operand_b[31] == 0)begin
-                    ALU_result[31:0] = 1;
-                end
-                else if(operand_a[31] == 0 && operand_b[31] == 1)begin
-                    ALU_result[31:0] = 0;
-                end
-                else begin
-                    outcheck[31:0] = operand_a[31:0] - operand_b[31:0];
-                    if  (outcheck[31] == 1)begin
-                        ALU_result[31:0] = 1;
-                    end
-                    else begin
-                        ALU_result[31:0] = 0;
-                    end
-                end
+               if(operand_a[31]==1 && operand_b[31]==0)begin
+                            ALU_result[31:0] = 1;
+                        end
+                        else if(operand_a[31]==0 && operand_b[31]==1)begin
+                            ALU_result[31:0]  = 0;
+                        end
+                        else begin
+                            outcheck[31:0] = operand_a[31:0] -operand_b[31:0];
+                            if  (outcheck[31]==1)begin
+                              ALU_result[31:0] =1;
+                            end
+                            else begin
+                              ALU_result[31:0] =0;
+                            end
+                        end
                 if (swap_branch_answer == 0)begin
-                    zero = (ALU_result == 1);
+                    zero = (ALU_result==1);
                 end
                 else begin
-                    zero = ~(ALU_result == 1);
+                    zero = ~(ALU_result==1);
                 end
             end
             SRA:    begin
                 zero = 0;
-                ALU_result = $signed(operand_a[DATA_W-1:0]) >>> $signed(operand_b[DATA_W-1:0]);
+                ALU_result = $signed(operand_a[DATA_W-1:0])>>>$signed(operand_b[DATA_W-1:0]);
             end
             XOR:    begin
                 zero = 0;
@@ -558,6 +563,9 @@ module ALU #(
             auipc:  begin
                 zero = 0;
                 ALU_result = i_PC + operand_b;
+                $display(i_PC);
+                $display(operand_b);
+                $display(ALU_result);
             end
             Jal:    begin
                 zero = 0;
@@ -622,7 +630,6 @@ module Reg_file(i_clk, i_rst_n, wen, rs1, rs2, rd, wdata, rdata1, rdata2);
         end       
     end
 endmodule
-
 module  imm_generator#(
     parameter BIT_W=32,
     parameter R_type = 7'b0110011,
@@ -646,12 +653,12 @@ module  imm_generator#(
             case (instruction[14:12])
                 3'b001:begin
                     immediate[4:0] = instruction[24:20];
-                    immediate[31:5] = (instruction[24]==1)?20'b111111111111111111111111111:0;
+                    immediate[31:5] = (instruction[24]==1)?27'b111111111111111111111111111:0;
 
                 end 
                 3'b101:begin
                     immediate[4:0] = instruction[24:20];
-                    immediate[31:5] = (instruction[24]==1)?20'b111111111111111111111111111:0;
+                    immediate[31:5] = (instruction[24]==1)?27'b111111111111111111111111111:0;
                 end
                 default:begin
                     immediate[11:0] = instruction[31:20];
@@ -701,10 +708,10 @@ module  imm_generator#(
     
     end
 endmodule
-
 module MULDIV_unit#(  //TODO
     parameter DATA_W = 32
-)(
+)
+(
      input                       i_clk,   // clock 自己決定要不要clock 
     // input                       i_rst_n, // reset
 
@@ -809,7 +816,8 @@ module MULDIV_unit#(  //TODO
             cnt         <= cnt_nxt;
             result      <= result_nxt;
         end
-    end  
+    end
+    
 endmodule
 
 module Cache#(
