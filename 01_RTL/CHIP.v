@@ -28,7 +28,12 @@ module CHIP #(                                                                  
 // Parameters
 // ------------------------------------------------------------------------------------------------------------------------------------------------------
 
-    // TODO: any declaration
+        // TODO: any declaration
+    //FSM that tell PC to stop
+    parameter S_single_cycle= 2'd0;
+    parameter S_write_mem = 2'd1;//5cycle
+    parameter S_read_mem = 2'd2;//9cycle
+    parameter S_mul = 2'd3;//32cycle
 
 // ------------------------------------------------------------------------------------------------------------------------------------------------------
 // Wires and Registers
@@ -39,30 +44,77 @@ module CHIP #(                                                                  
         wire mem_cen, mem_wen;
         wire [BIT_W-1:0] mem_addr, mem_wdata, mem_rdata;
         wire mem_stall;
-
+        wire MemRead_select, MemWrite_select;
+        wire [1:0] Branch_select;
+        wire MemtoReg_select, ALUsrc_select,Regwrite_select;
+        wire [3:0] ALU_opcode;
+        wire swap_branch_answer;
+        wire [31:0] rs1,rs2;
+        wire [31:0] immediate;
+        wire [31:0] rs2_select;
+        wire zero;
+        wire [31:0] ALU_result;
+        wire [31:0] write_data_back_reg;
+        reg PC_control; //set high to stop pc+4 (pc_wait | i_dmem_stall)
+        wire [BIT_W - 1 :0] MULDIV_result;
+        wire pc_wait;//muldiv unit's
+        wire [BIT_W-1:0] single_ALU;
+        wire Muldiv_ALU_choose;
+        reg imem_cen,imem_cen_nxt;
 // ------------------------------------------------------------------------------------------------------------------------------------------------------
 // Continuous Assignment
 // ------------------------------------------------------------------------------------------------------------------------------------------------------
 
     // TODO: any wire assignment
-
+    assign o_IMEM_addr = PC;
+    assign o_IMEM_cen = 1; //imem_cen;//???不確定
 // ------------------------------------------------------------------------------------------------------------------------------------------------------
-// Submodules
+// Submoddules
 // ------------------------------------------------------------------------------------------------------------------------------------------------------
 
     // TODO: Reg_file wire connection
     Reg_file reg0(               
         .i_clk  (i_clk),             
         .i_rst_n(i_rst_n),         
-        .wen    (),          
-        .rs1    (),                
-        .rs2    (),                
-        .rd     (),                 
-        .wdata  (),             
-        .rdata1 (),           
-        .rdata2 ()
+        .wen    (Regwrite_select & ~PC_control),          
+        .rs1    (i_IMEM_data[19:15]),                
+        .rs2    (i_IMEM_data[24:20]),                 
+        .rd     (i_IMEM_data[11:7]),                 
+        .wdata  (write_data_back_reg),             
+        .rdata1 (rs1),           
+        .rdata2 (rs2)
     );
 
+    imm_generator reg2(               //register generate immediate
+        .inst (i_IMEM_data[31:0]),
+        .out_immediate(immediate[31:0])
+    );
+    mux reg3(               //mutliplexer for rs2 and immediate
+        .input_1(rs2),
+        .input_2(immediate),
+        .control(ALUsrc_select),
+        .o_result(rs2_select)
+    );
+    MULDIV_unit reg5(
+        .i_clk(i_clk),
+        .i_A(rs1),
+        .i_B(rs2_select),
+        .i_ALU_opcode(ALU_opcode),
+        .o_data(MULDIV_result),
+        .o_pc_wait(pc_wait)
+    );
+    mux control(
+        .input_1(single_ALU),
+        .input_2(MULDIV_result),
+        .control(Muldiv_ALU_choose),
+        .o_result(ALU_result)
+        );
+    mux reg6(
+        .input_1(ALU_result),
+        .input_2(i_DMEM_rdata),
+        .control(MemtoReg_select),
+        .o_result(write_data_back_reg)
+    );
     // Control Unit
 
 
@@ -88,6 +140,34 @@ module CHIP #(                                                                  
 // ------------------------------------------------------------------------------------------------------------------------------------------------------
     
     // Todo: any combinational/sequential circuit
+
+ always @(*)begin
+        imem_cen = 1;
+        // if (!PC_control) begin
+        //     imem_cen_nxt = 0;
+        // end
+    end
+    //PC control
+    always @(*) begin
+        PC_control = i_DMEM_stall | pc_wait;
+        case(Branch_select)
+            2'b00:  begin //no branch
+                next_PC = PC_control ? PC : (PC + 4);
+            end
+            2'b01:  begin //B-type
+                if(zero) begin 
+                    next_PC = PC + immediate;
+                end
+                else next_PC = PC + 4;
+            end
+            2'b10: begin //JAL
+                next_PC = PC + immediate;
+            end
+            2'b11: begin //JALR
+                next_PC = rs1 + immediate;
+            end
+        endcase
+    end
 
     always @(posedge i_clk or negedge i_rst_n) begin
         if (!i_rst_n) begin
@@ -160,25 +240,26 @@ module  imm_generator#(
     reg    [31:0]  immediate;
     assign out_immediate = immediate;
     always@(*)begin
+        immediate[31:0] = 0;
     case(inst[6:0])
         I_type:begin
             case (inst[14:12])
                 3'b001:begin
                     immediate[4:0] = inst[24:20];
-                    if(inst[24] == 1) immediate[31:5] = 20'b111111111111111111111111111;
+                    if(inst[24] == 1) immediate[31:5] = 27'b111111111111111111111111111;
                     else immediate[31:5] = 0;
                     // immediate[31:5] = (inst[24]==1)?20'b111111111111111111111111111:0;
 
                 end 
                 3'b101:begin
                     immediate[4:0] = inst[24:20];
-                    if(inst[24] == 1) immediate[31:5] = 20'b111111111111111111111111111;
+                    if(inst[24] == 1) immediate[31:5] = 27'b111111111111111111111111111;
                     else immediate[31:5] = 0;
                     // immediate[31:5] = (inst[24]==1)?20'b111111111111111111111111111:0;
                 end
                 default:begin
                     immediate[11:0] = inst[31:20];
-                    if(inst[31] == 1) immediate[31:12] = 20'b111111111111111111111111111;
+                    if(inst[31] == 1) immediate[31:12] = 20'b11111111111111111111;
                     else immediate[31:12] = 0;
                     // immediate[31:12] = (inst[31]==1)? 20'b11111111111111111111 : 0;
                 end
@@ -189,42 +270,43 @@ module  imm_generator#(
             immediate[4:0] = inst[11:7];
             immediate[11:5] = inst[31:25];
             if(inst[31] == 1) immediate[31:12] = 20'b11111111111111111111;
-            else immediate[31:12] = (inst[31] == 1) = 0;
+            else immediate[31:12] = 0;
             // immediate[31:12] = (inst[31]==1)? 20'b11111111111111111111:0;
         end
         B_type:begin
             // immediate[0] = 0;//dont care
-            immediate[4:1] = instruction[11:8];
-            immediate[11] = instruction[7];
-            immediate[10:5] = instruction[30:25];
-            immediate[12] = instruction[31];
-            if (inst[31] == 1) immediate[31:13] = 19'b11111111111111111111;
+            immediate[4:1] = inst[11:8];
+            immediate[11] = inst[7];
+            immediate[10:5] = inst[30:25];
+            immediate[12] = inst[31];
+            if (inst[31] == 1) immediate[31:13] = 19'b1111111111111111111;
             else immediate[31:13] = 0;
             // immediate[31:13] = (instruction[31]==1)? 19'b1111111111111111111: 0;  
         end
         U_type:begin
-            immediate[31:12] = instruction[31:12];
+            immediate[31:12] = inst[31:12];
             immediate[11: 0] = 12'b0;
         end
         Jal:begin
             immediate[0    ] = 0;
-            immediate[20   ] = instruction[31];
-            immediate[10: 1] = instruction[30:21];
-            immediate[11   ] = instruction[20];
-            immediate[19:12] = instruction[19:12];
-            if (inst[31] == 1) immediate[31:21] = 11'b11111111111111111111;
+            immediate[20   ] = inst[31];
+            immediate[10: 1] = inst[30:21];
+            immediate[11   ] = inst[20];
+            immediate[19:12] = inst[19:12];
+            if (inst[31] == 1) immediate[31:21] = 11'b11111111111;
             else immediate[31:21] = 0;
             // immediate[31:21] = (instruction[31]==1)? 11'b11111111111:0;
         end
         Jalr:begin
-            immediate[11:0 ] = instruction[31:20];
+            immediate[11:0 ] = inst[31:20];
             if (inst[31] == 1) immediate[31:12] = 20'b11111111111111111111;
             else immediate[31:12] = 0;
             // immediate[31:12] = (instruction[31]==1)? 20'b11111111111111111111 : 0;
         end
         Load:begin
-            immediate[11:0] = instruction[31:20];
-            immediate[31:12] = (instruction[31]==1)? 20'b11111111111111111111 : 0;
+            immediate[11:0] = inst[31:20];
+            if(inst[31] == 1) immediate[31:12] = 20'b11111111111111111111;
+            else immediate[31:12] = 0;
         end
         Ecall:begin
             immediate[31:0] = 0;
@@ -234,101 +316,7 @@ module  imm_generator#(
     
     end
 endmodule
-module ControlUnit #(
-        parameter BIT_W  = 32,
-        parameter INST_W = 7,
-        parameter R_type = 7'b0110011,
-        parameter I_type = 7'b0010011,
-        parameter S_type = 7'b0100011,
-        parameter B_type = 7'b1100011,
-        parameter U_type = 7'b0010111,
-        parameter Load   = 7'b0000011,
-        parameter Jal    = 7'b1101111,
-        parameter Jalr   = 7'b1100111,
-        parameter Ecall  = 7'b1110011
-    )(
-        input [INST_W-1:0] i_opcode,
-        input [6:0] i_func7,
-        input [3:0] i_func3,
-        output [1:0] o_BranchType,  // BranchTypeType Type, 1: BType, 2: Jal, 3: Jalr
-        output o_Branch,            // Branch or not
-        output o_MemRead,           // To Data Memory
-        output o_MemToReg,          // To WB mux
-        output [3:0] o_ALU_opcode,  // To ALU Control Unit
-        output o_MULDIV_opcode,     // To MULDIV Unit
-        output o_MemWrite,          // To Data Memory
-        output o_ALUSrc,            // To Rs2 and Imm selection mux
-        output o_RegWrite,          // To Registers
-        output o_finish,            // Finish signal
-    )
-    // regs declaration and assign to outputs
-        reg [1:0] BranchType;
-        assign o_BranchType = BranchType;
 
-        reg Branch;
-        assign o_Branch = branch;
-
-        reg MemRead;
-        assign o_MemRead = MemRead;
-
-        reg MemToReg;
-        assign o_MemToReg = MemToReg;
-
-        reg [3:0] ALU_opcode;
-        assign o_ALU_opcode = ALU_opcode;
-
-        reg MULDIV_opcode;
-        assign o_MULDIV_opcode = MULDIV_opcode;
-
-        reg MemWrite;
-        assign o_MemWrite = MemWrite;
-
-        reg ALUSrc;
-        assign o_ALUSrc = ALUSrc;
-
-        reg RegWrite;
-        assign o_RegWrite = RegWrite;
-
-        reg finish;
-        assign o_finish = finish;
-
-        always @(*) begin
-            case(i_opcode)
-                R_type  : begin
-                    
-                end
-                I_type  : begin
-                end
-                S_type  : begin
-                end
-                B_type  : begin
-                end
-                U_type  : begin
-                end
-                Load    : begin
-                end
-                Jal     : begin
-                end
-                Jalr    : begin
-                end
-                Ecall   : begin
-                end
-                default : begin
-                    BranchType      = 2'd0;
-                    Branch          = 1'b0;
-                    MemRead         = 1'b0; 
-                    MemToReg        = 1'b0;
-                    ALU_opcode      = 4'd15;
-                    MULDIV_opcode   = 1'b0;
-                    MemWrite
-                    ALUSrc
-                    RegWrite
-                    finish
-                end
-            endcase
-        end
-
-endmodule
 module mux(input_1,input_2,control,o_result);
     input[31:0] input_1,input_2;
     input control;
@@ -370,7 +358,7 @@ endmodule
 // endmodule
 
 module MULDIV_unit#(
-    parameter DATA_W = 32;
+    parameter DATA_W = 32
 )
     (
     // TODO: port declaration
@@ -404,14 +392,15 @@ module MULDIV_unit#(
     reg [2*DATA_W-1:0] temp1, temp2;
 // Wire Assignments
     // Todo
-    assign o_data = out;
+    assign o_adta = out_nxt;
     assign o_done = oDone;
+    assign o_pc_wait = pc_wait;
 
 
      always @(*) begin
         operand_a_nxt = i_A;
         operand_b_nxt = i_B;
-        if ((i_ALU_opcode == 4'b0110) || (i_ALU_opcode == 4'b0111)) begin // may have problem here.
+        if ((i_ALU_opcode == 4'b0110) || (i_ALU_opcode == 4'b0111)) begin 
             muldivrst_n = 1;
         end
         else begin
@@ -421,30 +410,20 @@ module MULDIV_unit#(
     always @ (*) begin
         case(i_ALU_opcode)
             4'b0110: begin
-                if (counter == 0) begin 
-                    if(i_A[0] == 0) out_nxt = {33'b0, i_A[31:1]};
+                if (counter == 1) begin 
+                    if (out[0] == 0) out_nxt = out >> 1;
                     else begin
-                        out_nxt = {1'b0, i_B[31:0], i_A[31:1]}; 
-                    end
-                end
-                else begin
-                    if (out[0] == 1) begin
                         out_nxt = out >> 1;
                         out_nxt[63:31] = operand_b + out[63:32];
                     end
-                    else begin
-                        out_nxt = out >> 1;
-                    end
+                end
+                else begin
+                    if(i_A[0] == 1)  out_nxt = {1'b0, i_B[31:0], i_A[31:1]};
+                    else out_nxt = {33'b0, i_A[31:1]};
                 end
             end
             4'b0111:begin
-                if (counter == 0) begin
-                    if (i_A[31] >= i_B) begin
-                        out_nxt = {31'b0, i_A[30:0], 2'b01};
-                    end
-                    else out_nxt = {30'b0, i_A, 2'b0};
-                end
-                else if (counter < 31) begin
+                if (counter < 31) begin
                     if (out[63:32] >= operand_b) begin
                         {temp, out_nxt[63:33]} = out[63:32] - operand_b;
                         out_nxt[32:0] = {out[31:0], 1'b1};
@@ -453,10 +432,14 @@ module MULDIV_unit#(
                         out_nxt = {out[62:0], 1'b0};
                     end
                 end
+                else if (counter == 0) begin
+                    if (i_A[31] < i_B) out_nxt = {30'b0, i_A, 2'b0};
+                    else out_nxt = {31'b0, i_A[30:0], 2'b01};
+                end
                 else begin
                     if (out[63:32] >= operand_b) begin
                         out_nxt[63:32] = out[63:32] - operand_b;
-                        out_nxt[31:0] = {out[30:0], 1'b1};
+                        out_nxt[31: 0] = {out[30:0], 1'b1};
                     end
                     else begin
                         out_nxt = {out[63:32], out[30:0], 1'b0};
@@ -475,7 +458,7 @@ module MULDIV_unit#(
         end
         else begin
             counter_nxt = 0;
-            pc_wait = 0;
+            pc_wait     = 0;
         end
     end
     // Todo: Sequential always block
@@ -485,7 +468,7 @@ module MULDIV_unit#(
             operand_a   <= 0;
             operand_b   <= 0;
             counter     <= 0;
-            result      <= 0;
+            out         <= 0;
         end
         else begin
             operand_a   <= operand_a_nxt;
@@ -497,48 +480,48 @@ module MULDIV_unit#(
     
 endmodule
 
-module Cache #(
-        parameter BIT_W = 32,
-        parameter ADDR_W = 32
-    )(
-        input i_clk,
-        input i_rst_n,
-        // processor interface
-            input i_proc_cen,
-            input i_proc_wen,
-            input [ADDR_W-1:0] i_proc_addr,
-            input [BIT_W-1:0]  i_proc_wdata,
-            output [BIT_W-1:0] o_proc_rdata,
-            output o_proc_stall,
-            input i_proc_finish,
-            output o_cache_finish,
-        // memory interface
-            output o_mem_cen,
-            output o_mem_wen,
-            output [ADDR_W-1:0] o_mem_addr,
-            output [BIT_W*4-1:0]  o_mem_wdata,
-            input [BIT_W*4-1:0] i_mem_rdata,
-            input i_mem_stall,
-            output o_cache_available,
-        // others
-        input  [ADDR_W-1: 0] i_offset
-    );
+// module Cache #(
+//         parameter BIT_W = 32,
+//         parameter ADDR_W = 32
+//     )(
+//         input i_clk,
+//         input i_rst_n,
+//         // processor interface
+//             input i_proc_cen,
+//             input i_proc_wen,
+//             input [ADDR_W-1:0] i_proc_addr,
+//             input [BIT_W-1:0]  i_proc_wdata,
+//             output [BIT_W-1:0] o_proc_rdata,
+//             output o_proc_stall,
+//             input i_proc_finish,
+//             output o_cache_finish,
+//         // memory interface
+//             output o_mem_cen,
+//             output o_mem_wen,
+//             output [ADDR_W-1:0] o_mem_addr,
+//             output [BIT_W*4-1:0]  o_mem_wdata,
+//             input [BIT_W*4-1:0] i_mem_rdata,
+//             input i_mem_stall,
+//             output o_cache_available,
+//         // others
+//         input  [ADDR_W-1: 0] i_offset
+//     );
 
-    assign o_cache_available = 0; // change this value to 1 if the cache is implemented
+//     assign o_cache_available = 0; // change this value to 1 if the cache is implemented
 
-    //------------------------------------------//
-    //          default connection              //
-    assign o_mem_cen = i_proc_cen;              //
-    assign o_mem_wen = i_proc_wen;              //
-    assign o_mem_addr = i_proc_addr;            //
-    assign o_mem_wdata = i_proc_wdata;          //
-    assign o_proc_rdata = i_mem_rdata[0+:BIT_W];//
-    assign o_proc_stall = i_mem_stall;          //
-    //------------------------------------------//
+//     //------------------------------------------//
+//     //          default connection              //
+//     assign o_mem_cen = i_proc_cen;              //
+//     assign o_mem_wen = i_proc_wen;              //
+//     assign o_mem_addr = i_proc_addr;            //
+//     assign o_mem_wdata = i_proc_wdata;          //
+//     assign o_proc_rdata = i_mem_rdata[0+:BIT_W];//
+//     assign o_proc_stall = i_mem_stall;          //
+//     //------------------------------------------//
 
-    // Todo: BONUS
+//     // Todo: BONUS
 
-endmodule
+// endmodule
 
 
 module Cache#(
@@ -548,21 +531,21 @@ module Cache#(
         input i_clk,
         input i_rst_n,
         // processor interface
-            input i_proc_cen,
-            input i_proc_wen,
-            input [ADDR_W-1:0] i_proc_addr,
-            input [BIT_W-1:0]  i_proc_wdata,
-            output [BIT_W-1:0] o_proc_rdata,
+            input  i_proc_cen,
+            input  i_proc_wen,
+            input  [ADDR_W-1:0]  i_proc_addr,
+            input  [BIT_W-1: 0]  i_proc_wdata,
+            output [BIT_W-1: 0]  o_proc_rdata,
             output o_proc_stall,
-            input i_proc_finish,
+            input  i_proc_finish,
             output o_cache_finish,
         // memory interface
             output o_mem_cen,
             output o_mem_wen,
-            output [ADDR_W-1:0] o_mem_addr,
+            output [ADDR_W-1: 0]  o_mem_addr,
             output [BIT_W*4-1:0]  o_mem_wdata,
-            input [BIT_W*4-1:0] i_mem_rdata,
-            input i_mem_stall,
+            input  [BIT_W*4-1:0]  i_mem_rdata,
+            input  i_mem_stall,
             output o_cache_available,
         //others
             input  [ADDR_W-1: 0] i_offset
@@ -582,15 +565,14 @@ module Cache#(
 
     // Todo: BONUS
     //parameters:
-    parameter S_IDLE = 3'd0;
-    parameter S_FIND = 3'd1;
-    parameter S_WB = 3'd2;
-    parameter S_ALLO = 3'd3;
-    parameter S_FINISH = 3'd4;
+    parameter S_IDLE       = 3'd0;
+    parameter S_FIND       = 3'd1;
+    parameter S_WB         = 3'd2;
+    parameter S_ALLO       = 3'd3;
+    parameter S_FINISH     = 3'd4;
     parameter block_number = 16;
     //regs
     reg [2:0] state, state_nxt;
-    reg hit;
     reg mem_cen, mem_wen;
     reg cen, cen_nxt, wen, wen_nxt;
     reg proc_stall;
@@ -602,16 +584,17 @@ module Cache#(
     reg [1:0] offset, offset_nxt;
     reg [3:0] counter;
     reg finish;
+    reg hit;
     reg [ADDR_W-1:0] proc_addr, real_addr;
 
     //wire assignment
-    assign o_mem_cen = mem_cen;
-    assign o_mem_wen = mem_wen;
-    assign o_mem_addr = proc_addr + i_offset;
-    assign o_mem_wdata = data[index];//syntax??
+    assign o_mem_cen   = mem_cen;
+    assign o_mem_wen   = mem_wen;
+    assign o_mem_addr  = proc_addr + i_offset;
+    assign o_mem_wdata = data[index];
 
-    assign o_proc_stall = proc_stall;
-    assign o_proc_rdata = data[index][ADDR_W*offset +: ADDR_W];
+    assign o_proc_stall   = proc_stall;
+    assign o_proc_rdata   = data[index][ADDR_W*offset +: ADDR_W];
     assign o_cache_finish = finish;
 
     integer i;
@@ -816,7 +799,7 @@ module Cache#(
         if (!i_rst_n) begin
             // reset
             state <= S_IDLE;
-            for (i = 0; i < block_number; i = i+1)begin
+            for (i = 0; i < block_number; i = i + 1)begin
                 data[i] <= 0;
                 valid[i] <= 0;
                 tag[i] <= 0;
