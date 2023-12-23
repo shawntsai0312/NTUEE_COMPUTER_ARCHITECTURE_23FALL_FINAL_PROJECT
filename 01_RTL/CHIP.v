@@ -834,7 +834,9 @@ module Cache#(
             input  [ADDR_W-1: 0] i_offset
     );
 
-    assign o_cache_available = 1; // change this value to 1 if the cache is implemented
+    // change this value to 1 if the cache is implemented
+    // remember to change the finish signal output of the control unit
+    assign o_cache_available = 1; 
 
     // //------------------------------------------//
     // //          default connection              //

@@ -8,7 +8,7 @@
 cd 01_RTL/
 source 00_license.sh
 ```
-#### How to Run
+#### How To Run
 
 ```shell
 source 01_run.sh I[k]
@@ -25,17 +25,18 @@ source 01_run.sh I[k]
 
 ```shell
 source 01_run.sh I0
+# CPU will execute "leaf"
 ```
 
-ALU will execute "leaf"
 
-#### How to Clean files
+
+#### How To Clean files
 
 ```shell
-source ./01_RTL/99_clean_up.f
+source ./01_RTL/99_clean_up.sh
 ```
 
-#### github command
+#### Some Github Commands
 
 * Remember to save and git add, git commit before downloading
 
