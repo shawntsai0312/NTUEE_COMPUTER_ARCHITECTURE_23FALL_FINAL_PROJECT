@@ -5,39 +5,29 @@
 #### Before running
 
 ```shell
-source ./01_RTL/00_license.f
+cd 01_RTL/
+source 00_license.sh
 ```
-
-##### modified ./HW2/01_RTL/01_run.f
-
-```
-vcs ../00_TB/HW2_tb.v HW2.v -full64 -R -debug_access+all +v2k +notimingcheck +define+I<number>
-```
-
-|number |instruction|
-|-------|-----------|
-|0      |add        |
-|1      |sub        |
-|2      |and        |
-|3      |or         |
-|4      |slt        |
-|5      |sra        |
-|6      |mul        |
-|7      |div        |
-
-##### Example
-
-```
-vcs ../00_TB/HW2_tb.v HW2.v -full64 -R -debug_access+all +v2k +notimingcheck +define+I0
-```
-
-ALU will execute addition
-  
 #### How to Run
 
 ```shell
-source ./01_RTL/01_run.f
+source 01_run.sh I[k]
 ```
+
+|k      |instruction|
+|-------|-----------|
+|0      |leaf       |
+|1      |fact       |
+|2      |hw1        |
+|3      |sort       |
+
+##### Example
+
+```shell
+source 01_run.sh I0
+```
+
+ALU will execute "leaf"
 
 #### How to Clean files
 
