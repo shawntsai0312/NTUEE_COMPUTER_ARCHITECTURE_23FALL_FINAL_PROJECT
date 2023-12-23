@@ -11,7 +11,7 @@ module CHIP #(                                                                  
         output              o_IMEM_cen,                                                         //
     // data memory                                                                              //
         input               i_DMEM_stall,                                                       //
-        input  [BIT_W-1:0]  i_DMEM_rdata,      //data memoy read                                                //
+        input  [BIT_W-1:0]  i_DMEM_rdata,      //data memoy read                                //
         output              o_DMEM_cen,                                                         //
         output              o_DMEM_wen,                                                         //
         output [BIT_W-1:0]  o_DMEM_addr,                                                        //
@@ -189,13 +189,24 @@ module CHIP #(                                                                  
         if (!i_rst_n)   PC <= 32'h00010000; // Do not modify this value!!!
         else            PC <= PC_nxt;
         // $display("PC           = %h", PC);
+        // $display("i_IMEM[6:0]  = %d", i_IMEM_data[6:0]);
+
+        // $display("rst_n        = %d", i_rst_n);
+        // $display("RegWrite     = %b", RegWrite);
+        // $display("~PCcontrol   = %b", ~PCcontrol);
+        
+        // $display("i_IMEM_data  = %d", i_IMEM_data[19:15]);
+
         // $display("rs1Data      = %d", rs1Data);
         // $display("aluIn2       = %d", aluIn2);
         // $display("ALUopcode    = %d", ALU_opcode);
         // $display("ALUResult    = %d", ALU_Result);
+
         // $display("result       = %d", result);
         // $display("i_DMEM_rdata = %h", i_DMEM_rdata);
+        // $display("wbCTRL       = %b", MemToReg);
         // $display("write_data   = %d", wdata);
+        
         // $display("i_IMEM_data  = %h", i_IMEM_data);
         // $display("\n");
     end
@@ -351,7 +362,7 @@ module ControlUnit #(
                 MemToReg        = 1'b0;
                 case(i_func3)
                     3'b000  : ALU_opcode = 4'd0;                // addi => add
-                    3'b010  : ALU_opcode = 4'd0;                // slti => slt
+                    3'b010  : ALU_opcode = 4'd4;                // slti => slt
                     3'b101  : begin
                         case(i_func7)
                             7'b0100000 : ALU_opcode = 4'd5;     // srai => sra
@@ -376,13 +387,13 @@ module ControlUnit #(
                 BranchType      = 2'd0;
                 InvertZeroAns   = 1'b0;
                 MemRead         = 1'b1; 
-                MemToReg        = 1'b1;
+                MemToReg        = 1'b0;
                 case(i_func3)
                     3'b010  : ALU_opcode = 4'd0;  // add
                     default : ALU_opcode = 4'd15; // ALU does nothing
                 endcase
                 selectMULDIV    = 1'b0;
-                MemWrite        = 1'b0;
+                MemWrite        = 1'b1;
                 ALUSrc          = 1'b1;
                 RegWrite        = 1'b0;
                 finish          = 1'b0;
@@ -408,8 +419,8 @@ module ControlUnit #(
                 endcase
                 selectMULDIV    = 1'b0;
                 MemWrite        = 1'b0;
-                ALUSrc          = 1'b1;
-                RegWrite        = 1'b1;
+                ALUSrc          = 1'b0;
+                RegWrite        = 1'b0;
                 finish          = 1'b0;
             end
             Load    : begin
@@ -712,7 +723,7 @@ module MULDIVUnit#(
     
     output [DATA_W - 1 : 0]   o_MULDIV_out,  // output value
     output o_PCwait // told pc to wait
-);
+    );
 
     reg  [5:0] counter, counter_nxt;
     reg  [DATA_W-1: 0] operand_a, operand_a_nxt;
@@ -730,7 +741,7 @@ module MULDIVUnit#(
     always @(*) begin
         operand_a_nxt = i_A;
         operand_b_nxt = i_B;
-        muldiv_on = (i_ALU_opcode == MUL) || (i_ALU_opcode == DIV)
+        muldiv_on = (i_ALU_opcode == MUL) || (i_ALU_opcode == DIV);
     end
     always @ (*) begin
         case(i_ALU_opcode)
@@ -781,7 +792,6 @@ module MULDIVUnit#(
         end
     end
     always @(posedge i_clk) begin
-        // $display("cnt = %d, unit_on = %d, PCwait= %d, MUL_result_nxt=%d, MUL_result = %d ",cnt,unit_on,PCwait,result_nxt,result);
         if (!muldiv_on) begin
             operand_a   <= 0;
             operand_b   <= 0;
@@ -837,261 +847,225 @@ module Cache#(
     // //------------------------------------------//
 
     // Todo: BONUS
-        //parameters:
-        parameter S_IDLE       = 3'd0;
-        parameter S_FIND       = 3'd1;
-        parameter S_WB         = 3'd2;
-        parameter S_ALLO       = 3'd3;
-        parameter S_FINISH     = 3'd4;
-        parameter block_number = 16;
-        //regs
-        reg [2:0] state, state_nxt;
-        reg mem_cen, mem_wen;
-        reg cen, cen_nxt, wen, wen_nxt;
-        reg proc_stall;
-        reg [4*BIT_W-1:0] data [0:block_number-1], data_nxt[0:block_number-1];
-        reg [23:0] tag [0:block_number-1], tag_nxt[0:block_number-1];//i_addr[31:8]
-        reg valid [0:block_number-1], valid_nxt[0:block_number-1];
-        reg dirty [0:block_number-1], dirty_nxt[0:block_number-1];
-        reg [3:0] index, index_nxt;
-        reg [1:0] offset, offset_nxt;
-        reg [3:0] counter;
-        reg finish;
-        reg hit;
-        reg [ADDR_W-1:0] proc_addr, real_addr;
+        // parameters:
+            parameter S_IDLE       = 3'd0;
+            parameter S_FIND       = 3'd1;
+            parameter S_WB         = 3'd2;
+            parameter S_ALLO       = 3'd3;
+            parameter S_FINISH     = 3'd4;
+            parameter block_number = 16;
+
+        // regs
+            reg [2:0] state, state_nxt;
+            reg mem_cen, mem_wen;
+            reg cen, cen_nxt;
+            reg wen, wen_nxt;
+            reg proc_stall;
+            reg [4*BIT_W-1:0] data [0:block_number-1], data_nxt [0:block_number-1];
+            reg [23:0] tag [0:block_number-1], tag_nxt[0:block_number-1];//i_addr[31:8]
+            reg valid [0:block_number-1], valid_nxt[0:block_number-1];
+            reg dirty [0:block_number-1], dirty_nxt[0:block_number-1];
+            reg [3:0] index, index_nxt;
+            reg [1:0] offset, offset_nxt;
+            reg [3:0] counter;
+            reg finish;
+            reg hit;
+            reg [ADDR_W-1:0] proc_addr, real_addr;
 
         //wire assignment
-        assign o_mem_cen   = mem_cen;
-        assign o_mem_wen   = mem_wen;
-        assign o_mem_addr  = proc_addr + i_offset;
-        assign o_mem_wdata = data[index];
+            assign o_mem_cen   = mem_cen;
+            assign o_mem_wen   = mem_wen;
+            assign o_mem_addr  = proc_addr + i_offset;
+            assign o_mem_wdata = data[index];
 
-        assign o_proc_stall   = proc_stall;
-        assign o_proc_rdata   = data[index][ADDR_W*offset +: ADDR_W];
-        assign o_cache_finish = finish;
+            assign o_proc_stall   = proc_stall;
+            assign o_proc_rdata   = data[index][ADDR_W*offset +: ADDR_W];
+            assign o_cache_finish = finish;
 
-        integer i;
+            integer i;
 
-        //always blocks
-        always @(*) begin
-            real_addr = i_proc_addr - i_offset;
-            if (state == S_FINISH) begin
-                index = counter;
-                offset = 0;
-                proc_addr = {tag[index], index, offset, 2'b00};
+        // 
+            always @(*) begin
+                real_addr = i_proc_addr - i_offset;
+                if (state == S_FINISH) begin
+                    index = counter;
+                    offset = 0;
+                    proc_addr = {tag[index], index, offset, 2'b00};
+                end
+                else if (state == S_WB) begin
+                    index = real_addr[7:4];
+                    offset = 0;
+                    proc_addr = {tag[index], index, offset, 2'b00};
+                end
+                else begin 
+                    proc_addr = real_addr;
+                    index = proc_addr[7:4];
+                    offset = proc_addr[3:2];
+                end
+                hit = (tag[index] == proc_addr[31:8]) & valid[index];
             end
-            else if (state == S_WB) begin
-                index = real_addr[7:4];
-                offset = 0;
-                proc_addr = {tag[index], index, offset, 2'b00};
-            end
-            else begin 
-                proc_addr = real_addr;
-                index = proc_addr[7:4];
-                offset = proc_addr[3:2];
-            end
-            hit = (tag[index] == proc_addr[31:8]) & valid[index];
-        end
 
-        always @(*) begin
-            case(state)
-                S_IDLE: begin
-                    finish = 0;
-                    if (i_proc_finish) begin
-                        state_nxt = S_FINISH;
-                    end
-                    else begin
-                        if (i_proc_cen) begin
-                            state_nxt = S_FIND;
-                        end
+        // state_nxt / state relations
+            always @(*) begin
+                case(state)
+                    S_IDLE   : begin
+                        finish = 0;
+                        if(i_proc_finish)   state_nxt = S_FINISH;
                         else begin
+                            if (i_proc_cen) state_nxt = S_FIND;
+                            else            state_nxt = S_IDLE;
+                        end
+                    end
+                    S_FIND   : begin
+                        finish = 0;
+                        if(hit) state_nxt = S_IDLE;
+                        else begin
+                            if (dirty[index])   state_nxt = S_WB;
+                            else                state_nxt = S_ALLO;
+                        end 
+                    end
+                    S_WB     : begin
+                        finish = 0;
+                        if(!i_mem_stall)    state_nxt = S_ALLO;
+                        else                state_nxt = S_WB;
+                    end
+                    S_ALLO   : begin
+                        finish = 0;
+                        if(!i_mem_stall)    state_nxt = S_FIND;
+                        else                state_nxt = S_ALLO;
+                    end
+                    S_FINISH : begin
+                        //counter == block_number means all data is stored
+                        if(counter == (block_number-1) && !i_mem_stall) begin 
+                            finish = 1;
                             state_nxt = S_IDLE;
                         end
-                    end
-                end
-                S_FIND: begin
-                    finish = 0;
-                    if(hit) state_nxt = S_IDLE;
-                    else begin
-                        if (dirty[index]) begin
-                            state_nxt = S_WB;
+                        else begin
+                            finish = 0;
+                            state_nxt = S_FINISH;
                         end
-                        else state_nxt = S_ALLO;
-                    end 
-                end
-                S_WB:   begin
-                    finish = 0;
-                    if(!i_mem_stall) begin
-                        state_nxt = S_ALLO;
                     end
-                    else state_nxt = S_WB;
-                end
-                S_ALLO: begin
-                    finish = 0;
-                    if(!i_mem_stall) begin
-                        state_nxt = S_FIND;
-                    end
-                    else state_nxt = S_ALLO;
-                end
-                S_FINISH:   begin
-                    if (counter == (block_number-1) && !i_mem_stall) begin //counter == block_number means all data is stored
-                        state_nxt = S_IDLE;
-                        finish = 1;
-                    end
-                    else begin
-                        state_nxt = S_FINISH;
+                    default  : begin
                         finish = 0;
+                        state_nxt = state;
                     end
-                    
-                end
-                default: begin
-                    state_nxt = state;
-                    finish = 0;
-                end
-            endcase
-        end
-
-        always @(*) begin
-            for (i = 0; (i < block_number) ; i = i + 1) begin
-                dirty_nxt[i] = 0;
-                tag_nxt[i] = 0;
-                valid_nxt[i] = 0;
-                data_nxt[i] = 0;
+                endcase
             end
-            case(state)
-                S_IDLE: begin
-                    dirty_nxt[index] = dirty[index];
-                    mem_cen = 0;
-                    mem_wen = 0;
-                    proc_stall = i_proc_cen;
-                    cen_nxt = i_proc_cen;
-                    wen_nxt = i_proc_wen;
-                    tag_nxt[index] = tag[index];
-                    valid_nxt[index] = valid[index];
-                    data_nxt[index] = data[index];
+
+        // each state data_nxt / data relations
+            always @(*) begin
+                // init to avoid latches
+                for (i = 0; (i < block_number) ; i = i + 1) begin
+                    dirty_nxt[i] = 0;
+                    tag_nxt[i] = 0;
+                    valid_nxt[i] = 0;
+                    data_nxt[i] = 0;
                 end
-                S_FIND: begin
-                    mem_cen = 0;
-                    mem_wen = 0;
-                    cen_nxt = cen;
-                    wen_nxt = wen;
-                    tag_nxt[index] = tag[index];
-                    valid_nxt[index] = valid[index];
-                    if (hit) begin
-                        if (!wen) begin
-                            data_nxt[index] = data[index];
-                            dirty_nxt[index] = dirty[index];
-                        end
-                        else begin
-                            dirty_nxt[index] = 1;
-                            data_nxt[index] = data[index];
-                            data_nxt[index][ADDR_W*offset +: ADDR_W] = i_proc_wdata;
-                        end
-                        proc_stall = 0;
-                    end
-                    else begin
-                        proc_stall = 1;
+
+                case(state)
+                    S_IDLE   : begin
+                        dirty_nxt[index] = dirty[index];
+                        mem_cen = 0;
+                        mem_wen = 0;
+                        proc_stall = i_proc_cen;
+                        cen_nxt = i_proc_cen;
+                        wen_nxt = i_proc_wen;
+                        tag_nxt[index] = tag[index];
+                        valid_nxt[index] = valid[index];
                         data_nxt[index] = data[index];
-                        if(wen) begin
-                            dirty_nxt[index] = 1;
-                        end
-                        else begin
-                            dirty_nxt[index] = dirty[index];
-                        end
                     end
-                end
-                S_WB:   begin
-                    data_nxt[index] = data[index];
-                    dirty_nxt[index] = dirty[index];
-                    mem_cen = 1;
-                    mem_wen = 1;
-                    proc_stall = 1;
-                    cen_nxt = cen;
-                    wen_nxt = wen;
-                    tag_nxt[index] = tag[index];
-                    valid_nxt[index] = valid[index];
-                end
-                S_ALLO: begin
-                    data_nxt[index] = i_mem_rdata;
-                    dirty_nxt[index] = dirty[index];
-                    mem_cen = 1;
-                    mem_wen = 0;
-                    proc_stall = 1;
-                    cen_nxt = cen;
-                    wen_nxt = wen;
-                    tag_nxt[index] = proc_addr[31:8];
-                    valid_nxt[index] = 1;
-                end
-                S_FINISH:   begin
-                    data_nxt[index] = data[index];
-                    cen_nxt = cen;
-                    wen_nxt = wen;
-                    tag_nxt[index] = tag[index];
-                    valid_nxt[index] = valid[index];
-                    if (dirty[index]) begin
-                        dirty_nxt[index] = 0;
+                    S_FIND   : begin
+                        data_nxt[index] = data[index];
+                        if (hit && wen) data_nxt[index][ADDR_W*offset +: ADDR_W] = i_proc_wdata;
+                        dirty_nxt[index] = wen ? 1 : dirty[index];
+                        mem_cen = 0;
+                        mem_wen = 0;
+                        proc_stall = !hit;
+                        cen_nxt = cen;
+                        wen_nxt = wen;
+                        tag_nxt[index] = tag[index];
+                        valid_nxt[index] = valid[index];
+                    end
+                    S_WB     : begin
+                        data_nxt[index] = data[index];
+                        dirty_nxt[index] = dirty[index];
                         mem_cen = 1;
                         mem_wen = 1;
+                        proc_stall = 1;
+                        cen_nxt = cen;
+                        wen_nxt = wen;
+                        tag_nxt[index] = tag[index];
+                        valid_nxt[index] = valid[index];
                     end
-                    else begin
+                    S_ALLO   : begin
+                        data_nxt[index] = i_mem_rdata;
+                        dirty_nxt[index] = dirty[index];
+                        mem_cen = 1;
+                        mem_wen = 0;
+                        proc_stall = 1;
+                        cen_nxt = cen;
+                        wen_nxt = wen;
+                        tag_nxt[index] = proc_addr[31:8];
+                        valid_nxt[index] = 1;
+                    end
+                    S_FINISH : begin
+                        data_nxt[index] = data[index];
                         dirty_nxt[index] = 0;
-                        mem_cen = 0;
-                        mem_wen = 0;    
+                        mem_cen = dirty[index];
+                        mem_wen = dirty[index];
+                        proc_stall = 1;
+                        cen_nxt = cen;
+                        wen_nxt = wen;
+                        tag_nxt[index] = tag[index];
+                        valid_nxt[index] = valid[index];
                     end
-                    proc_stall = 1;
-                end
-                default:    begin
-                    data_nxt[index] = 0;
-                    dirty_nxt[index] = dirty[index];
-                    mem_cen = 0;
-                    mem_wen = 0;
-                    proc_stall = 0;
-                    cen_nxt = 0;
-                    wen_nxt = 0;
-                    tag_nxt[index] = tag[index];
-                    valid_nxt[index] = valid[index];
-                end
-            endcase
-        end
-        //finish counter
+                    default  : begin
+                        data_nxt[index] = 0;
+                        dirty_nxt[index] = dirty[index];
+                        mem_cen = 0;
+                        mem_wen = 0;
+                        proc_stall = 0;
+                        cen_nxt = 0;
+                        wen_nxt = 0;
+                        tag_nxt[index] = tag[index];
+                        valid_nxt[index] = valid[index];
+                    end
+                endcase
+            end
 
-        always @(posedge i_clk) begin
-            if (state == S_FINISH) begin
-                if (!i_mem_stall) begin
-                    counter <= counter + 1;
+        // counter
+            always @(posedge i_clk) begin
+                if (state == S_FINISH) begin
+                    if (!i_mem_stall)   counter <= counter + 1;
+                    else                counter <= counter;
+                end
+                else counter <= 0;
+            end
+
+        // sequential part : update values
+            always @(posedge i_clk or negedge i_rst_n) begin
+                if (!i_rst_n) begin
+                    state <= S_IDLE;
+                    for (i = 0; i < block_number; i = i + 1) begin
+                        data[i]  <= 0;
+                        valid[i] <= 0;
+                        tag[i]   <= 0;
+                        dirty[i] <= 0;
+                    end
+                    cen <= 0;
+                    wen <= 0; 
                 end
                 else begin
-                    counter <= counter;
+                    state <= state_nxt;
+                    if (cen) begin
+                        data[index]  <= data_nxt[index];
+                        valid[index] <= valid_nxt[index];
+                        tag[index]   <= tag_nxt[index];
+                        dirty[index] <= dirty_nxt[index];
+                    end
+                    cen <= cen_nxt;
+                    wen <= wen_nxt;
                 end
             end
-            else counter <= 0;
-        end
 
-        //sequential part
-        always @(posedge i_clk or negedge i_rst_n) begin
-            if (!i_rst_n) begin
-                // reset
-                state <= S_IDLE;
-                for (i = 0; i < block_number; i = i + 1)begin
-                    data[i] <= 0;
-                    valid[i] <= 0;
-                    tag[i] <= 0;
-                    dirty[i] <= 0;
-                
-                end
-                cen <= 0;
-                wen <= 0; 
-            end
-            else begin
-                state <= state_nxt;
-                if (cen) begin
-                    data[index] <= data_nxt[index];
-                    valid[index] <= valid_nxt[index];
-                    tag[index] <= tag_nxt[index];
-                    dirty[index] <= dirty_nxt[index];
-                end
-                cen <= cen_nxt;
-                wen <= wen_nxt;
-            end
-        end
 endmodule
