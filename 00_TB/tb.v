@@ -12,14 +12,17 @@
     `define MEM_INST "../00_TB/Pattern/I1/mem_I.dat"
     `define MEM_DATA "../00_TB/Pattern/I1/mem_D.dat"
     `define MEM_GOLDEN "../00_TB/Pattern/I1/golden.dat"
+    `define data 1
 `elsif I2
     `define MEM_INST "../00_TB/Pattern/I2/mem_I.dat"
     `define MEM_DATA "../00_TB/Pattern/I2/mem_D.dat"
     `define MEM_GOLDEN "../00_TB/Pattern/I2/golden.dat"
+    `define data 2
 `elsif I3
     `define MEM_INST "../00_TB/Pattern/I3/mem_I.dat"
     `define MEM_DATA "../00_TB/Pattern/I3/mem_D.dat"
     `define MEM_GOLDEN "../00_TB/Pattern/I3/golden.dat"
+    `define data 3
 `elsif IH
     `define MEM_INST "../00_TB/Pattern/IH/mem_I.dat"
     `define MEM_DATA "../00_TB/Pattern/IH/mem_D.dat"
@@ -28,6 +31,7 @@
     `define MEM_INST "../00_TB/Pattern/I0/mem_I.dat"
     `define MEM_DATA "../00_TB/Pattern/I0/mem_D.dat"
     `define MEM_GOLDEN "../00_TB/Pattern/I0/golden.dat"
+    `define data 0
 `endif
 
 module Final_tb;

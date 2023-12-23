@@ -11,7 +11,7 @@ module CHIP #(                                                                  
         output              o_IMEM_cen,                                                         //
     // data memory                                                                              //
         input               i_DMEM_stall,                                                       //
-        input  [BIT_W-1:0]  i_DMEM_rdata,                                                       //
+        input  [BIT_W-1:0]  i_DMEM_rdata,      //data memoy read                                                //
         output              o_DMEM_cen,                                                         //
         output              o_DMEM_wen,                                                         //
         output [BIT_W-1:0]  o_DMEM_addr,                                                        //
@@ -146,7 +146,7 @@ module CHIP #(                                                                  
         .i_A(rs1Data),
         .i_B(aluIn2),
         .i_ALU_opcode(ALU_opcode),
-        .o_data(MULDIV_Result),
+        .o_MULDIV_out(MULDIV_Result),
         .o_PCwait(PCwait)
     );
 
@@ -229,7 +229,7 @@ module Reg_file(i_clk, i_rst_n, wen, rs1, rs2, rd, wdata, rdata1, rdata2);
     always @(posedge i_clk or negedge i_rst_n) begin
         if (!i_rst_n) begin
             mem[0] <= 0;
-            for (i = 1; i < word_depth; i = i + 1) begin
+            for (i=1; i<word_depth; i=i+1) begin
                 case(i)
                     32'd2: mem[i] <= 32'hbffffff0;
                     32'd3: mem[i] <= 32'h10008000;
@@ -239,7 +239,7 @@ module Reg_file(i_clk, i_rst_n, wen, rs1, rs2, rd, wdata, rdata1, rdata2);
         end
         else begin
             mem[0] <= 0;
-            for (i = 1; i < word_depth; i = i + 1)
+            for (i=1; i<word_depth; i=i+1)
                 mem[i] <= mem_nxt[i];
         end       
     end
@@ -709,96 +709,80 @@ module MULDIVUnit#(
     input [DATA_W - 1 : 0]      i_A,     // input operand A
     input [DATA_W - 1 : 0]      i_B,     // input operand B
     input [         3 : 0]      i_ALU_opcode,  // instruction
+    
+    output [DATA_W - 1 : 0]   o_MULDIV_out,  // output value
+    output o_PCwait // told pc to wait
+);
 
-    output [DATA_W - 1 : 0]     o_data,  // output value   O_MULDIV_Result
-    output                      o_PCwait   // output valid signal
-    );
-    // Todo: HW2
-    // Wires & Regs
-    // state
-    reg  [         1: 0] state, state_nxt; // remember to expand the bit width if you want to add more states!
-    // load input
-    reg  [  DATA_W-1: 0] operand_a, operand_a_nxt;
-    reg  [  DATA_W-1: 0] operand_b, operand_b_nxt;
-    reg  muldivrst_n;
-    reg  temp;
-    reg  PCwait;
-    // reg  [         2: 0] inst, inst_nxt;
-
-    reg [          5: 0] counter, counter_nxt;//0-63 
-    //output
+    reg  [5:0] counter, counter_nxt;
+    reg  [DATA_W-1: 0] operand_a, operand_a_nxt;
+    reg  [DATA_W-1: 0] operand_b, operand_b_nxt;
     reg  [2*DATA_W-1: 0] out, out_nxt;
-    reg oDone, oDone_nxt;
-    reg [2*DATA_W-1:0] temp1, temp2;
-    // Wire Assignments
-    // Todo
-    assign o_data = out_nxt;
-    assign o_done = oDone;
-    assign o_PCwait = PCwait;
+    reg  temp;
+    reg  [DATA_W-1: 0] temp1,temp2;
+    reg  muldiv_on;
+    reg  stall;
+    reg  PCwait;
 
+    assign o_MULDIV_out = out_nxt[DATA_W - 1 : 0];
+    assign o_PCwait = PCwait;
+    //load input
     always @(*) begin
         operand_a_nxt = i_A;
         operand_b_nxt = i_B;
-        muldivrst_n = (i_ALU_opcode == MUL) || (i_ALU_opcode == DIV);
+        muldiv_on = (i_ALU_opcode == MUL) || (i_ALU_opcode == DIV)
     end
     always @ (*) begin
         case(i_ALU_opcode)
             MUL : begin
-                if (counter == 1) begin 
-                    if (out[0] == 0) out_nxt = out >> 1;
+                if (counter == 0) begin 
+                    if(!i_A[0]) out_nxt = {33'b0, i_A[31:1]};
+                    else        out_nxt = {1'b0, i_B[31:0], i_A[31:1]}; 
+                end
+                else begin
+                    if (!out[0]) out_nxt = out >> 1;
                     else begin
                         out_nxt = out >> 1;
                         out_nxt[63:31] = operand_b + out[63:32];
                     end
                 end
-                else begin
-                    if(i_A[0])  out_nxt = {1'b0, i_B[31:0], i_A[31:1]};
-                    else out_nxt = {33'b0, i_A[31:1]};
-                end
             end
             DIV : begin
-                if (counter < 31) begin
+                if (counter == 0) begin
+                    if (i_A[31] >= i_B) out_nxt = {31'b0, i_A[30:0], 2'b01};
+                    else                out_nxt = {30'b0, i_A, 2'b0};
+                end
+                else if (counter < 31) begin
                     if (out[63:32] >= operand_b) begin
                         {temp, out_nxt[63:33]} = out[63:32] - operand_b;
                         out_nxt[32:0] = {out[31:0], 1'b1};
                     end
-                    else begin
-                        out_nxt = {out[62:0], 1'b0};
-                    end
-                end
-                else if (counter == 0) begin
-                    if (i_A[31] < i_B) out_nxt = {30'b0, i_A, 2'b0};
-                    else out_nxt = {31'b0, i_A[30:0], 2'b01};
+                    else out_nxt = {out[62:0], 1'b0};
                 end
                 else begin
                     if (out[63:32] >= operand_b) begin
                         out_nxt[63:32] = out[63:32] - operand_b;
-                        out_nxt[31: 0] = {out[30:0], 1'b1};
+                        out_nxt[31:0] = {out[30:0], 1'b1};
                     end
-                    else begin
-                        out_nxt = {out[63:32], out[30:0], 1'b0};
-                    end
+                    else out_nxt = {out[63:32], out[30:0], 1'b0};
                 end
             end
-            default:    begin
-                out_nxt = 0;
-            end
+            default : out_nxt = 0;
         endcase
     end
     always @(*) begin
-        if (counter < 31 && muldivrst_n) begin
+        if (counter < 31 && muldiv_on) begin
             counter_nxt = counter + 1;
             PCwait = 1;
         end
         else begin
             counter_nxt = 0;
-            PCwait      = 0;
+            PCwait = 0;
         end
     end
-    // Todo: Sequential always block
     always @(posedge i_clk) begin
         // $display("cnt = %d, unit_on = %d, PCwait= %d, MUL_result_nxt=%d, MUL_result = %d ",cnt,unit_on,PCwait,result_nxt,result);
-        if (!muldivrst_n) begin
+        if (!muldiv_on) begin
             operand_a   <= 0;
             operand_b   <= 0;
             counter     <= 0;
@@ -820,21 +804,21 @@ module Cache#(
         input i_clk,
         input i_rst_n,
         // processor interface
-            input  i_proc_cen,
-            input  i_proc_wen,
-            input  [ADDR_W-1:0]  i_proc_addr,
-            input  [BIT_W-1: 0]  i_proc_wdata,
-            output [BIT_W-1: 0]  o_proc_rdata,
+            input i_proc_cen,
+            input i_proc_wen,
+            input [ADDR_W-1:0] i_proc_addr,
+            input [BIT_W-1:0]  i_proc_wdata,
+            output [BIT_W-1:0] o_proc_rdata,
             output o_proc_stall,
-            input  i_proc_finish,
+            input i_proc_finish,
             output o_cache_finish,
         // memory interface
             output o_mem_cen,
             output o_mem_wen,
-            output [ADDR_W-1: 0]  o_mem_addr,
+            output [ADDR_W-1:0] o_mem_addr,
             output [BIT_W*4-1:0]  o_mem_wdata,
-            input  [BIT_W*4-1:0]  i_mem_rdata,
-            input  i_mem_stall,
+            input [BIT_W*4-1:0] i_mem_rdata,
+            input i_mem_stall,
             output o_cache_available,
         //others
             input  [ADDR_W-1: 0] i_offset
