@@ -339,8 +339,8 @@ module ControlUnit #(
                     end
                     7'b0000001 : begin
                         case (i_func3)
-                            3'b000:  ALU_opcode = 4'd6;  // mul
-                            3'b100:  ALU_opcode = 4'd7;  // div
+                            3'b000 :  ALU_opcode = 4'd6; // mul
+                            3'b100 :  ALU_opcode = 4'd7; // div
                             default: ALU_opcode = 4'd15; // ALU does nothing
                         endcase
                     end
