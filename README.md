@@ -28,13 +28,20 @@ source 01_run.sh I0
 # CPU will execute "leaf"
 ```
 
-
-
 #### How To Clean files
 
 ```shell
 source ./01_RTL/99_clean_up.sh
 ```
+
+#### Results
+
+|k      |instruction|without cache|with cache|
+|-------|-----------|-------------|----------|
+|0      |leaf       |           77|        79|
+|1      |fact       |          440|       375|
+|2      |hw1        |          400|       376|
+|3      |sort       |         1324|       561|
 
 #### Some Github Commands
 

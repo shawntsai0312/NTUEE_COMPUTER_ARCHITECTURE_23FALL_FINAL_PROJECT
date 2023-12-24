@@ -400,7 +400,6 @@ module ControlUnit #(
             end
             B_type  : begin
                 BranchType      = 2'd1;
-                InvertZeroAns   = 1'b0;
                 case(i_func3)
                     3'b000  : InvertZeroAns = 1'b0; // beq (ALU support sub, if subAns==0, then it is equal)
                     3'b001  : InvertZeroAns = 1'b1; // bne (ALU does not support, invert the answer of beq)
@@ -714,8 +713,6 @@ module MULDIVUnit#(
     )(
     // TODO: port declaration
     input                       i_clk,          // clock
-    // input                       i_rst_n,     // reset
-    // input                       i_valid,     // input valid signal
     input [         3 : 0]      i_ALU_opcode,   // instruction
     input [DATA_W - 1 : 0]      i_A,            // input operand A
     input [DATA_W - 1 : 0]      i_B,            // input operand B
@@ -736,13 +733,12 @@ module MULDIVUnit#(
 
     assign o_MULDIV_Result = out_nxt[DATA_W - 1 : 0];
     assign o_PCwait = PCwait;
-    //load input
+
+    // calculation part
     always @(*) begin
         operand_a_nxt = i_A;
         operand_b_nxt = i_B;
         muldiv_on = (i_ALU_opcode == MUL) || (i_ALU_opcode == DIV);
-    end
-    always @ (*) begin
         case(i_ALU_opcode)
             MUL : begin
                 if (counter == 0) begin 
@@ -780,6 +776,8 @@ module MULDIVUnit#(
             default : out_nxt = 0;
         endcase
     end
+
+    // counter part
     always @(*) begin
         if (counter < 31 && muldiv_on) begin
             counter_nxt = counter + 1;
@@ -790,6 +788,8 @@ module MULDIVUnit#(
             PCwait = 0;
         end
     end
+
+    // sequential part
     always @(posedge i_clk) begin
         if (!muldiv_on) begin
             operand_a   <= 0;
