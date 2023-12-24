@@ -96,15 +96,15 @@ module CHIP #(                                                                  
     assign o_DMEM_wdata = rs2Data;
 
     // Imm Gen
-    immGenerator immGen(
+    ImmGenerator immGen(
         .inst (i_IMEM_data[31:0]),
-        .out_immediate(imm[31:0])
+        .o_imm(imm[31:0])
     );
 
-    // ALU input mux
-    mux aluInputMux(
-        .input_1(rs2Data),
-        .input_2(imm),
+    // ALU input Mux
+    Mux aluInputMux(
+        .input0(rs2Data),
+        .input1(imm),
         .control(ALUSrc),
         .o_result(aluIn2)
     );
@@ -143,26 +143,26 @@ module CHIP #(                                                                  
     // MULDIV Unit
     MULDIVUnit mulDivUnit(
         .i_clk(i_clk),
+        .i_ALU_opcode(ALU_opcode),
         .i_A(rs1Data),
         .i_B(aluIn2),
-        .i_ALU_opcode(ALU_opcode),
-        .o_MULDIV_out(MULDIV_Result),
+        .o_MULDIV_Result(MULDIV_Result),
         .o_PCwait(PCwait)
     );
 
     // Result Mux
-    mux resultMux(
-        .input_1(ALU_Result),
-        .input_2(MULDIV_Result),
+    Mux resultMux(
+        .input0(ALU_Result),
+        .input1(MULDIV_Result),
         .control(selectMULDIV ),
         .o_result(result)
     );
     assign o_DMEM_addr = result;
 
     // WB Mux
-    mux wbMux(
-        .input_1(result),
-        .input_2(i_DMEM_rdata),
+    Mux wbMux(
+        .input0(result),
+        .input1(i_DMEM_rdata),
         .control(MemToReg),
         .o_result(wdata)
     );
@@ -275,11 +275,11 @@ module ControlUnit #(
         output [1:0] o_BranchType,  // 1: BType, 2: Jal, 3: Jalr
         output o_InvertZeroAns,     // InvertZeroAns : beq = 0, bne = 1; blt = 0, bge = 1; ALU only support beq and blt
         output o_MemRead,           // To Data Memory
-        output o_MemToReg,          // To WB mux
+        output o_MemToReg,          // To WB Mux
         output [3:0] o_ALU_opcode,  // To ALU Control Unit
         output o_selectMULDIV,      // To MULDIV Unit
         output o_MemWrite,          // To Data Memory
-        output o_ALUSrc,            // To Rs2 and Imm selection mux
+        output o_ALUSrc,            // To Rs2 and Imm selection Mux
         output o_RegWrite,          // To Registers
         output o_finish             // Program Finish
     );
@@ -609,7 +609,7 @@ module ALU #(
     end  
 endmodule
 
-module immGenerator#(
+module ImmGenerator#(
         parameter BIT_W  = 32,
         parameter R_type = 7'b0110011,
         parameter I_type = 7'b0010011,
@@ -622,79 +622,79 @@ module immGenerator#(
         parameter Ecall  = 7'b1110011
     )(
         input  [31:0]  inst,
-        output [31:0]  out_immediate
+        output [31:0]  o_imm
     );
-    reg [31:0] immediate;
-    assign out_immediate = immediate;
+    reg [31:0] imm;
+    assign o_imm = imm;
 
     always@(*)begin
-        immediate[31:0] = 0;
+        imm[31:0] = 0;
         case(inst[6:0])
             I_type  : begin
                 case (inst[14:12])
                     3'b001  : begin
-                        immediate[4:0] = inst[24:20];
-                        if(inst[24])    immediate[31:5] = 27'b111_1111_1111_1111_1111_1111_1111;
-                        else            immediate[31:5] = 0;
+                        imm[4:0] = inst[24:20];
+                        if(inst[24])    imm[31:5] = 27'b111_1111_1111_1111_1111_1111_1111;
+                        else            imm[31:5] = 0;
                     end 
                     3'b101  : begin
-                        immediate[4:0] = inst[24:20];
-                        if(inst[24])    immediate[31:5] = 27'b111_1111_1111_1111_1111_1111_1111;
-                        else            immediate[31:5] = 0;
+                        imm[4:0] = inst[24:20];
+                        if(inst[24])    imm[31:5] = 27'b111_1111_1111_1111_1111_1111_1111;
+                        else            imm[31:5] = 0;
                     end
                     default : begin
-                        immediate[11:0] = inst[31:20];
-                        if(inst[31])    immediate[31:12] = 20'b1111_1111_1111_1111_1111;
-                        else            immediate[31:12] = 0;
+                        imm[11:0] = inst[31:20];
+                        if(inst[31])    imm[31:12] = 20'b1111_1111_1111_1111_1111;
+                        else            imm[31:12] = 0;
                     end
                 endcase
             end
             S_type  : begin
-                immediate[4:0] = inst[11:7];
-                immediate[11:5] = inst[31:25];
-                if(inst[31])    immediate[31:12] = 20'b1111_1111_1111_1111_1111;
-                else            immediate[31:12] = 0;
+                imm[4:0] = inst[11:7];
+                imm[11:5] = inst[31:25];
+                if(inst[31])    imm[31:12] = 20'b1111_1111_1111_1111_1111;
+                else            imm[31:12] = 0;
             end
             B_type  : begin
-                immediate[4:1] = inst[11:8];
-                immediate[11] = inst[7];
-                immediate[10:5] = inst[30:25];
-                immediate[12] = inst[31];
-                if (inst[31])   immediate[31:13] = 19'b111_1111_1111_1111_1111;
-                else            immediate[31:13] = 0;
+                imm[4:1] = inst[11:8];
+                imm[11] = inst[7];
+                imm[10:5] = inst[30:25];
+                imm[12] = inst[31];
+                if (inst[31])   imm[31:13] = 19'b111_1111_1111_1111_1111;
+                else            imm[31:13] = 0;
             end
             U_type  : begin
-                immediate[31:12] = inst[31:12];
-                immediate[11:0] = 0;
+                imm[31:12] = inst[31:12];
+                imm[11:0] = 0;
             end
             Jal     : begin
-                immediate[0] = 0;
-                immediate[20] = inst[31];
-                immediate[10:1] = inst[30:21];
-                immediate[11] = inst[20];
-                immediate[19:12] = inst[19:12];
-                if (inst[31])   immediate[31:21] = 11'b111_1111_1111;
-                else            immediate[31:21] = 0;
+                imm[0] = 0;
+                imm[20] = inst[31];
+                imm[10:1] = inst[30:21];
+                imm[11] = inst[20];
+                imm[19:12] = inst[19:12];
+                if (inst[31])   imm[31:21] = 11'b111_1111_1111;
+                else            imm[31:21] = 0;
             end
             Jalr    : begin
-                immediate[11:0 ] = inst[31:20];
-                if (inst[31])   immediate[31:12] = 20'b1111_1111_1111_1111_1111;
-                else            immediate[31:12] = 0;
+                imm[11:0 ] = inst[31:20];
+                if (inst[31])   imm[31:12] = 20'b1111_1111_1111_1111_1111;
+                else            imm[31:12] = 0;
             end
             Load    : begin
-                immediate[11:0] = inst[31:20];
-                if(inst[31])    immediate[31:12] = 20'b1111_1111_1111_1111_1111;
-                else            immediate[31:12] = 0;
+                imm[11:0] = inst[31:20];
+                if(inst[31])    imm[31:12] = 20'b1111_1111_1111_1111_1111;
+                else            imm[31:12] = 0;
             end
-            Ecall   : immediate[31:0] = 0;
-            default : immediate[31:0] = 0;
+            Ecall   : imm[31:0] = 0;
+            default : imm[31:0] = 0;
         endcase
     end
 endmodule
 
-module mux(
-    input [31:0] input_1,
-    input [31:0] input_2,
+module Mux(
+    input [31:0] input0,
+    input [31:0] input1,
     input control,
     output [31:0] o_result
     );
@@ -702,8 +702,8 @@ module mux(
     assign o_result = result;
 
     always @(*) begin
-        if(control)  result = input_2;
-        else         result = input_1;
+        if(control)  result = input1;
+        else         result = input0;
     end
 endmodule
 
@@ -713,16 +713,15 @@ module MULDIVUnit#(
         parameter DATA_W = 32
     )(
     // TODO: port declaration
-    input                       i_clk,   // clock
-    // input                       i_rst_n, // reset
-
-    // input                       i_valid, // input valid signal
-    input [DATA_W - 1 : 0]      i_A,     // input operand A
-    input [DATA_W - 1 : 0]      i_B,     // input operand B
-    input [         3 : 0]      i_ALU_opcode,  // instruction
+    input                       i_clk,          // clock
+    // input                       i_rst_n,     // reset
+    // input                       i_valid,     // input valid signal
+    input [         3 : 0]      i_ALU_opcode,   // instruction
+    input [DATA_W - 1 : 0]      i_A,            // input operand A
+    input [DATA_W - 1 : 0]      i_B,            // input operand B
     
-    output [DATA_W - 1 : 0]   o_MULDIV_out,  // output value
-    output o_PCwait // told pc to wait
+    output [DATA_W - 1 : 0]   o_MULDIV_Result,  // output value
+    output o_PCwait                             // told pc to wait
     );
 
     reg  [5:0] counter, counter_nxt;
@@ -735,7 +734,7 @@ module MULDIVUnit#(
     reg  stall;
     reg  PCwait;
 
-    assign o_MULDIV_out = out_nxt[DATA_W - 1 : 0];
+    assign o_MULDIV_Result = out_nxt[DATA_W - 1 : 0];
     assign o_PCwait = PCwait;
     //load input
     always @(*) begin
@@ -1069,5 +1068,4 @@ module Cache#(
                     wen <= wen_nxt;
                 end
             end
-
 endmodule
